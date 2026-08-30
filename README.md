@@ -1,139 +1,54 @@
-# AetherMemory: Interactive Agent Memory Playground
+# AetherMemory: AI Agent Memory Playground
 
-AetherMemory is an educational framework and interactive visual playground designed to teach and demonstrate the key concepts of **AI Agent Memory Architectures**. Large Language Models (LLMs) are inherently stateless; Agent Memory systems provide the persistent, structured continuity required for agents to learn, adapt, and recall details across multiple interactions.
-
-This project implements a complete multi-tier memory system with a premium, glassmorphic dark-mode dashboard interface that shows memory updates, retrieval weights ranking, and consolidation reports in real-time.
+AetherMemory is an interactive playground and python framework designed to help you learn how **AI Agent Memory** works. It simulates sensory, short-term, and long-term memory systems, letting you interact with an agent and watch its memory update in real-time.
 
 ---
 
-## 🧠 Memory Architecture Design
+## 🧠 The 4 Tiers of Agent Memory
 
-AetherMemory is modeled after cognitive architectures (such as the CoALA framework and the Stanford Generative Agents study), splitting memory into volatile and persistent layers:
+This project breaks down agent memory into four simple, logical layers:
 
-```
-                  ┌───────────────────────┐
-                  │     Sensory Input     │
-                  └───────────┬───────────┘
-                              │
-                              ▼
-               ┌─────────────────────────────┐
-               │  Short-Term Memory Buffer   ├─────────┐
-               │    (Active Conversation)    │         │
-               └──────────────┬──────────────┘         │
-                              │                  (Every Turn)
-                     (Limits Exceeded)                 │
-                              │                        ▼
-                              ▼               ┌─────────────────┐
-                      ┌───────────────┐       │  Episodic Stream│
-                      │Rolling Summary│       │ (LTM - Events)  │
-                      └───────────────┘       └────────┬────────┘
-                                                       │
-                                              (Sleep/Consolidate)
-                                                       │
-                                                       ▼
-                                              ┌─────────────────┐
-                                              │ Semantic Store  │
-                                              │ (LTM - Profile) │
-                                              └─────────────────┘
-```
-
-### 1. Sensory Memory (`sensory.py`)
-The immediate, volatile perception layer. It captures raw, incoming observations and targets the active sub-goal before any filtering or storage occurs.
-
-### 2. Short-Term Memory / Working Memory (`short_term.py`)
-Manages the active dialogue context. To prevent context window overflow:
-* **Dialogue Buffer:** Keeps a sliding window of the last $N$ turns.
-* **Rolling Summarizer:** Once token or turn limits are exceeded, older messages are compressed into a rolling summary context, which is prefixed to subsequent prompts.
-
-### 3. Long-Term Episodic Memory (`episodic.py`)
-A searchable database of all past experiences. Retrieval utilizes the Stanford Generative Agents formula to rank memories dynamically:
-$$\text{Score} = w_{\text{recency}} \cdot S_{\text{recency}} + w_{\text{importance}} \cdot S_{\text{importance}} + w_{\text{relevance}} \cdot S_{\text{relevance}}$$
-
-* **Recency ($S_{\text{recency}}$):** Modeled as an exponential decay $e^{-\lambda \cdot \Delta t}$ based on time elapsed since the memory was written.
-* **Importance ($S_{\text{importance}}$):** An integer score (1-10) indicating how critical the memory is (heuristic or LLM-judged).
-* **Relevance ($S_{\text{relevance}}$):** Vector cosine similarity (TF-IDF bag-of-words locally, or Gemini Embeddings online) between the search query and the memory content.
-
-### 4. Long-Term Semantic Memory (`semantic.py`)
-Consolidated, generalized knowledge. It consists of:
-* **User Profile:** Key-value attributes (e.g., name, location, occupation).
-* **Consolidated Facts:** A list of generalized, non-redundant factual statements.
-* **Entity Relation Graph:** A conceptual graph structure linking concepts together via directional edges (e.g., `User` --`likes`--> `green tea`).
-
-### 5. Memory Consolidation (`consolidation.py`)
-The **Sleep/Reflect Cycle**. Periodically (or via manual trigger), the agent "sleeps" to analyze its episodic memories. It extracts profile attributes, updates relationships, merges facts, and resolves conflicts (e.g. if the user says they now hate coffee, it updates the profile to override the old "likes coffee" preference).
-
-### 6. Evaluation Module (`evaluator.py`)
-Measures memory performance metrics:
-* **Retrieval Recall & Precision:** Evaluates how accurately the retrieval engine returned relevant memories compared to keyword-similarity ground truths.
-* **Compression Ratio:** Computes the prompt footprint savings achieved by the short-term summarizer.
+1. **Sensory Memory:** Captures raw user messages and immediate observations.
+2. **Short-Term Memory:** Tracks the active conversation. When chat history gets too long, it automatically summarizes older messages so the agent doesn't run out of token space.
+3. **Long-Term Episodic Memory:** Stores all past messages. When you search or chat, it retrieves the most relevant memories by ranking them based on:
+   - **Recency:** How recently did the event happen?
+   - **Importance:** How crucial is this detail to remember?
+   - **Relevance:** Does this match what the user is currently asking?
+4. **Long-Term Semantic Memory:** Extracted knowledge. When the agent "sleeps" (consolidates), it extracts structured user profiles (name, interests, location) and builds a relationship graph (e.g., `User` -> `likes` -> `green tea`).
 
 ---
 
-## 🛠️ Project Structure
+## 🚀 Quick Start
 
-```text
-├── aether_memory/               # Core Memory Modules
-│   ├── __init__.py
-│   ├── sensory.py               # Volatile input buffer
-│   ├── short_term.py            # Dialogue buffer & summaries
-│   ├── episodic.py              # Experience stream & hybrid search
-│   ├── semantic.py              # Profile database & entity graph
-│   ├── consolidation.py         # Sleep reflection engine
-│   └── evaluator.py             # Evaluation metrics calculations
-├── web/
-│   ├── server.py                # FastAPI backend endpoints
-│   └── static/                  # Glassmorphic Frontend Client
-│       ├── index.html           # 3-Column dashboard layout
-│       ├── style.css            # Dark gradients & animations
-│       └── app.js               # Frontend controller & UI state
-├── tests/
-│   └── test_memory.py           # Automated unit tests
-├── requirements.txt             # Project dependencies
-└── README.md                    # Documentation
-```
+AetherMemory works **100% offline** (Sandbox Mode) out-of-the-box. You can also enter a Google Gemini API Key in the UI to enable real AI embedding search and automated reflections.
 
----
-
-## 🚀 Getting Started
-
-AetherMemory runs in two modes out-of-the-box:
-1. **Local Sandbox Mode (Default):** Runs 100% locally with zero external keys. Uses local bag-of-words similarity and regex heuristic parser.
-2. **Gemini API Mode:** Uses Google Gemini API keys to generate real text embeddings, score memory importance, and generate rich semantic consolidations.
-
-### 1. Set Up Virtual Environment
-Create a Python virtual environment to manage dependencies locally:
+### 1. Set Up Virtual Environment & Dependencies
+Open your terminal in the project directory and run:
 
 ```bash
+# Create and activate a virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate
 
-### 2. Install Dependencies
-```bash
+# Install dependencies
 pip install fastapi uvicorn pydantic pytest
 ```
 
-### 3. Run Automated Tests
-Verify all memory modules are functioning correctly:
-```bash
-PYTHONPATH=. pytest tests/
-```
-
-### 4. Start the Application Server
-Run the FastAPI application from the project root:
+### 2. Run the Server
+Start the backend server:
 ```bash
 PYTHONPATH=. python web/server.py
 ```
-Open your browser and navigate to **`http://127.0.0.1:8000`** to access the interactive dashboard.
+
+### 3. Open the Playground
+Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your web browser.
 
 ---
 
-## 🎨 Interface Walkthrough
+## 🎮 Features to Try in the Dashboard
 
-* **Column 1: Controller & Settings:** Tune $w_{\text{recency}}$, $w_{\text{importance}}$, and $w_{\text{relevance}}$ sliders. Perform instant search queries inside the **Retrieval Tester** to see detailed score breakdowns.
-* **Column 2: Conversational Dialogue:** Message the agent to write experiences to the episodic memory stream.
-* **Column 3: Memory Tiers Inspector:**
-  * **Working Memory tab:** Watch system instructions and the rolling summary context updates.
-  * **Episodic tab:** View stored experiences. Cards will **glowing flash** in green when retrieved by your chat query!
-  * **Semantic tab:** View extracted user profiles, consolidated facts list, and the visual entity-relationship links.
-* **Sleep/Consolidate button (Header):** Click to trigger the reflection cycle and watch raw episodic logs translate into structured profile fields and relation cards.
+* **Chat Panel:** Talk to the agent (e.g. tell it your name, your job, and what you like).
+* **Memory Inspector (Right Tab):** Toggle between tabs to watch short-term summaries, episodic history logs, and semantic profile details update.
+* **Consolidate (Sleep) Button:** Click this in the header to run the reflection cycle. Watch the raw episodic chat logs transform into structured facts and graph nodes.
+* **Retrieval Sliders:** Adjust how much the agent prioritizes recency vs importance vs relevance. Run a search query in the **Retrieval Tester** to see individual scores, and watch matching episodic memories flash green!
+* **Run Tests:** You can verify all memory code by running `PYTHONPATH=. pytest tests/` in your terminal.
