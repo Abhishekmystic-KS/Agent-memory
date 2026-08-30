@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AetherMemory - Interactive Agent Memory Playground</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <h1>AetherMemory <span class="logo-tag">Simulator</span></h1>
+        </div>
+        <div class="header-controls">
+            <input type="password" id="gemini-key" class="api-key-input" placeholder="Google Gemini API Key">
+            <button id="btn-sleep" class="btn-primary" title="Trigger consolidation reflect loop">Consolidate (Sleep)</button>
+            <button id="btn-clear" class="btn-danger" title="Clear all memory stores">Reset System</button>
+        </div>
+    </header>
+
+    <main class="dashboard-container">
+
+        <!-- Column 1: Controller & Benchmarks -->
+        <section class="panel">
+            <div class="panel-header">Memory Controller</div>
+            <div class="panel-body">
+                
+                <!-- Retrieval Weight Sliders -->
+                <div class="settings-section">
+                    <h3>Retrieval Weights</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Tune weights used in the Generative Agents retrieval algorithm:
+                    </p>
+                    
+                    <div class="slider-container">
+                        <label for="weight-recency">
+                            <span>Recency Weight (w_recency)</span>
+                            <span id="val-recency">1.0</span>
+                        </label>
+                        <input type="range" id="weight-recency" min="0" max="2" step="0.1" value="1.0">
+                    </div>
+
+                    <div class="slider-container">
+                        <label for="weight-importance">
+                            <span>Importance Weight (w_importance)</span>
+                            <span id="val-importance">1.0</span>
+                        </label>
+                        <input type="range" id="weight-importance" min="0" max="2" step="0.1" value="1.0">
+                    </div>
+
+                    <div class="slider-container">
+                        <label for="weight-relevance">
+                            <span>Relevance Weight (w_relevance)</span>
+                            <span id="val-relevance">1.0</span>
+                        </label>
+                        <input type="range" id="weight-relevance" min="0" max="2" step="0.1" value="1.0">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Real-time Evaluation Metrics -->
+                <div class="settings-section">
+                    <h3>Live Evaluation Metrics</h3>
+                    <div class="metrics-grid" style="margin-top: 0.5rem;">
+                        <div class="metric-card">
+                            <span id="metric-precision" class="metric-value">N/A</span>
+                            <span class="metric-label">Precision</span>
+                        </div>
+                        <div class="metric-card">
+                            <span id="metric-recall" class="metric-value">N/A</span>
+                            <span class="metric-label">Recall</span>
+                        </div>
+                        <div class="metric-card highlight">
+                            <span id="metric-compression" class="metric-value">0%</span>
+                            <span class="metric-label">Compression</span>
+                        </div>
+                        <div class="metric-card">
+                            <span id="metric-latency" class="metric-value">0ms</span>
+                            <span class="metric-label">Latency</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Active Test Bench -->
+                <div class="settings-section">
+                    <h3>Retrieval Tester</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        Query episodic memory directly to inspect scoring weights:
+                    </p>
+                    <input type="text" id="test-query" class="test-bench-input" placeholder="Type a search query...">
+                    <button id="btn-test-query" class="btn-secondary" style="width: 100%;">Run Query Test</button>
+                    <div id="test-results" style="font-size: 0.75rem; max-height: 120px; overflow-y: auto; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;"></div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Column 2: Conversational Agent -->
+        <section class="panel">
+            <div class="panel-header">
+                <span>Agent Dialogue</span>
+                <span id="mode-badge" style="font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 99px; background: rgba(255,255,255,0.08); color: var(--text-secondary);">
+                    Local Heuristic Mode
+                </span>
+            </div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message assistant">
+                        Hello! I am an AI agent with sensory, short-term, and long-term memory systems. 
+                        Tell me about yourself (e.g. your name, what you like, what language you code in). 
+                        Then, you can trigger the <strong>Sleep & Consolidate</strong> cycle in the header to merge these experiences into structured knowledge!
+                    </div>
+                </div>
+                <div class="chat-input-bar">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Say something to the agent...">
+                    <button id="btn-send" class="btn-primary">Send</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Column 3: Memory Tiers Inspector -->
+        <section class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="working-mem-tab">Working Memory (STM)</button>
+                <button class="tab-btn" data-tab="episodic-tab">Episodic (LTM)</button>
+                <button class="tab-btn" data-tab="semantic-tab">Semantic (LTM)</button>
+            </div>
+
+            <!-- Tab 1: Working Memory -->
+            <div id="working-mem-tab" class="tab-content active">
+                <div class="wm-box">
+                    <div class="wm-title">System Instruction</div>
+                    <div class="wm-summary" id="wm-system-instruction">You are a helpful AI assistant with memory.</div>
+                </div>
+                <div class="wm-box">
+                    <div class="wm-title">Rolling Summarized History</div>
+                    <div class="wm-summary empty" id="wm-summary-content">No dialogue compressed yet. Summary will generate when token/turn thresholds are exceeded.</div>
+                </div>
+                <div class="wm-box">
+                    <div class="wm-title">Active Buffer Messages</div>
+                    <div id="wm-buffer-list" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 250px; overflow-y: auto;">
+                        <span style="color: var(--text-secondary);">Buffer is empty.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Episodic Stream -->
+            <div id="episodic-tab" class="tab-content">
+                <div class="episodic-list" id="episodic-list-container">
+                    <div style="color: var(--text-secondary); text-align: center; margin-top: 2rem; font-size: 0.85rem;">
+                        No memories recorded yet. Send a message to populate the episodic stream!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Semantic profile & Graph -->
+            <div id="semantic-tab" class="tab-content">
+                <div class="settings-section">
+                    <div class="wm-title" style="margin-bottom: 0.25rem;">User Profile Fields</div>
+                    <div class="profile-card">
+                        <table class="profile-table">
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="profile-table-body">
+                                <tr>
+                                    <td colspan="2" style="color: var(--text-secondary); text-align: center;">No profile keys extracted yet. Run Sleep Consolidation to build.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="wm-title" style="margin-bottom: 0.25rem;">Entity Relation Graph</div>
+                    <div class="profile-card">
+                        <div class="graph-nodes-list" id="graph-edges-list">
+                            <span style="color: var(--text-secondary); text-align: center; font-size: 0.85rem;">No relationship links mapped.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="wm-title" style="margin-bottom: 0.25rem;">Consolidated Facts</div>
+                    <div class="profile-card" style="max-height: 200px; overflow-y: auto;">
+                        <ul id="facts-list" style="font-size: 0.85rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem;">
+                            <span style="color: var(--text-secondary); margin-left: -1.25rem;">No facts generated.</span>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
