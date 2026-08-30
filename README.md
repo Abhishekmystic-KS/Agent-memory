@@ -18,6 +18,12 @@ This project breaks down agent memory into four simple, logical layers:
 
 ---
 
+## 🔄 Workflow
+
+![AetherMemory Workflow](https://github.com/user-attachments/assets/3e3270a5-bb74-4b58-a557-67df52d497fb)
+
+---
+
 ## 🚀 Quick Start
 
 AetherMemory works **100% offline** (Sandbox Mode) out-of-the-box. You can also enter a Google Gemini API Key in the UI to enable real AI embedding search and automated reflections.
