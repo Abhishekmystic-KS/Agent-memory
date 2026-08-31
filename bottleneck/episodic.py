@@ -3,7 +3,7 @@ import math
 import re
 from collections import Counter
 from typing import List, Dict, Any, Optional
-from aether_memory.skills.decay import compute_recency_score
+from bottleneck.skills.decay import compute_recency_score
 
 def calculate_local_similarity(text1: str, text2: str) -> float:
     """

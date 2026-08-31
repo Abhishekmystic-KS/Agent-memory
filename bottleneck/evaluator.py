@@ -26,7 +26,7 @@ class MemoryEvaluator:
         """
         # Determine "ground truth" relevant memories based on similarity threshold
         # In a real environment, we'd use human labels or a strong LLM judge.
-        from aether_memory.episodic import calculate_local_similarity
+        from bottleneck.episodic import calculate_local_similarity
         
         ground_truth_indices = []
         for idx, m in enumerate(all_memories):

@@ -1,11 +1,11 @@
 import time
 import pytest
-from aether_memory.sensory import SensoryMemory
-from aether_memory.short_term import ShortTermMemory
-from aether_memory.episodic import EpisodicMemory, calculate_local_similarity
-from aether_memory.semantic import SemanticMemory
-from aether_memory.consolidation import MemoryConsolidator
-from aether_memory.evaluator import MemoryEvaluator
+from bottleneck.sensory import SensoryMemory
+from bottleneck.short_term import ShortTermMemory
+from bottleneck.episodic import EpisodicMemory, calculate_local_similarity
+from bottleneck.semantic import SemanticMemory
+from bottleneck.consolidation import MemoryConsolidator
+from bottleneck.evaluator import MemoryEvaluator
 
 def test_sensory_memory():
     sm = SensoryMemory()

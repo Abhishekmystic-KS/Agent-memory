@@ -1,15 +1,15 @@
 import pytest
 import time
-from aether_memory.skills.sanitizer import sanitize
-from aether_memory.skills.decay import compute_recency_score
-from aether_memory.skills.ymyl import classify_ymyl_detailed
-from aether_memory.skills.uncertainty import (
+from bottleneck.skills.sanitizer import sanitize
+from bottleneck.skills.decay import compute_recency_score
+from bottleneck.skills.ymyl import classify_ymyl_detailed
+from bottleneck.skills.uncertainty import (
     assess_confidence,
     detect_frustration,
     build_frustration_response,
     build_uncertainty_guidance
 )
-from aether_memory.skills.active import ActiveRetrieval
+from bottleneck.skills.active import ActiveRetrieval
 
 def test_sanitizer():
     # Prompt injection

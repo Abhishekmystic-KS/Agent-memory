@@ -2,8 +2,8 @@ import re
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from aether_memory.episodic import EpisodicMemory
-from aether_memory.semantic import SemanticMemory
+from bottleneck.episodic import EpisodicMemory
+from bottleneck.semantic import SemanticMemory
 
 logger = logging.getLogger(__name__)
 
