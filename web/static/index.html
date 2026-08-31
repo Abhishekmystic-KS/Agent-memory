@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AetherMemory - Interactive Agent Memory Playground</title>
+    <title>Bottleneck - AI Developer Memory Cockpit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 
     <header>
         <div class="logo-container">
-            <h1>AetherMemory <span class="logo-tag">Simulator</span></h1>
+            <h1>Bottleneck <span class="logo-tag">Memory Agent</span></h1>
         </div>
         <div class="header-controls">
             <input type="password" id="gemini-key" class="api-key-input" placeholder="Google Gemini API Key">
@@ -172,13 +172,13 @@
 
                 <div class="chat-messages" id="chat-messages">
                     <div class="message assistant">
-                        Hello! I am an AI agent with sensory, short-term, and long-term memory systems. 
-                        Tell me about yourself (e.g. your name, what you like, what language you code in). 
-                        Then, you can trigger the <strong>Sleep & Consolidate</strong> cycle in the header to merge these experiences into structured knowledge!
+                        Welcome to the Bottleneck Developer Memory Cockpit! I am your AI companion's memory layer. 
+                        I help Claude Codex organize your coding preferences, style guides, project architecture patterns, and codebase context.
+                        Tell me something about your setup (e.g., "We are building a React frontend with a FastAPI backend on port 8000" or "My name is Kali and I prefer Google style docstrings"), and trigger <strong>Consolidate (Sleep)</strong> to compile it into a structured semantic knowledge graph!
                     </div>
                 </div>
                 <div class="chat-input-bar">
-                    <input type="text" id="chat-input" class="chat-input" placeholder="Say something to the agent...">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Update developer memory context...">
                     <button id="btn-send" class="btn-primary">Send</button>
                 </div>
             </div>
@@ -196,7 +196,7 @@
             <div id="working-mem-tab" class="tab-content active">
                 <div class="wm-box">
                     <div class="wm-title">System Instruction</div>
-                    <div class="wm-summary" id="wm-system-instruction">You are a helpful AI assistant with memory.</div>
+                    <div class="wm-summary" id="wm-system-instruction">You are Bottleneck, a premium developer memory companion. You help Claude Codex and the developer keep track of programming languages, style guidelines, project architecture, codebase paths, configurations, and session goals.</div>
                 </div>
                 <div class="wm-box">
                     <div class="wm-title">Rolling Summarized History</div>
@@ -242,7 +242,9 @@
 
                 <div class="settings-section">
                     <div class="wm-title" style="margin-bottom: 0.25rem;">Entity Relation Graph</div>
-                    <div class="profile-card">
+                    <div id="semantic-graph" style="height: 280px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.25); position: relative; overflow: hidden; width: 100%;"></div>
+                    <!-- Fallback/Hidden edges list for backing model -->
+                    <div class="profile-card" style="display: none;">
                         <div class="graph-nodes-list" id="graph-edges-list">
                             <span style="color: var(--text-secondary); text-align: center; font-size: 0.85rem;">No relationship links mapped.</span>
                         </div>
@@ -251,7 +253,7 @@
 
                 <div class="settings-section">
                     <div class="wm-title" style="margin-bottom: 0.25rem;">Consolidated Facts</div>
-                    <div class="profile-card" style="max-height: 200px; overflow-y: auto;">
+                    <div class="profile-card" style="max-height: 180px; overflow-y: auto;">
                         <ul id="facts-list" style="font-size: 0.85rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.3rem;">
                             <span style="color: var(--text-secondary); margin-left: -1.25rem;">No facts generated.</span>
                         </ul>
@@ -262,6 +264,7 @@
 
     </main>
 
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

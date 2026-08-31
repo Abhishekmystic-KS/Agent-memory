@@ -12,7 +12,7 @@ class ShortTermMemory:
         self.max_turns = max_turns
         self.messages: List[Dict[str, Any]] = []  # List of {"role": str, "content": str, "timestamp": float}
         self.rolling_summary: str = ""
-        self.system_instruction: str = "You are a helpful AI assistant with memory."
+        self.system_instruction: str = "You are Bottleneck, a premium developer memory companion. You help Claude Codex and the developer keep track of programming languages, style guidelines, project architecture, codebase paths, configurations, and session goals."
 
     def add_message(self, role: str, content: str):
         """

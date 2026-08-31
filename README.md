@@ -1,36 +1,34 @@
-# AetherMemory: AI Agent Memory Playground
+# Bottleneck: Developer Memory Agent
 
-AetherMemory is an interactive playground and python framework designed to help you learn how **AI Agent Memory** works. It simulates sensory, short-term, and long-term memory systems, letting you interact with an agent and watch its memory update in real-time.
-
----
-
-## 🧠 The 4 Tiers of Agent Memory
-
-This project breaks down agent memory into four simple, logical layers:
-
-1. **Sensory Memory:** Captures raw user messages and immediate observations.
-2. **Short-Term Memory:** Tracks the active conversation. When chat history gets too long, it automatically summarizes older messages so the agent doesn't run out of token space.
-3. **Long-Term Episodic Memory:** Stores all past messages. When you search or chat, it retrieves the most relevant memories by ranking them based on:
-   - **Recency:** How recently did the event happen?
-   - **Importance:** How crucial is this detail to remember?
-   - **Relevance:** Does this match what the user is currently asking?
-4. **Long-Term Semantic Memory:** Extracted knowledge. When the agent "sleeps" (consolidates), it extracts structured user profiles (name, interests, location) and builds a relationship graph (e.g., `User` -> `likes` -> `green tea`).
+Bottleneck is an open-source, premium developer memory companion and cognitive architecture layer designed for AI Coding Agents and Copilots (such as Claude Codex). It organizes coding preferences, style guides, project architecture patterns, and codebase environments using a four-tier memory pipeline and an interactive, real-time semantic relation graph.
 
 ---
 
-## 🔄 Workflow
+## 🧠 The 4-Tier Developer Memory Architecture
 
-![AetherMemory Workflow](./assets/workflow.png)
+Bottleneck manages developer context through four specialized memory tiers:
+
+1. **Sensory Ingestion Memory**: Captures raw user/agent dialogue and filters input using **Prompt Sanitization** to protect against prompt-injection instructions.
+2. **Short-Term (Working) Memory**: Manages the immediate conversation context with rolling token/turn summaries, preventing context window bloat for AI coding assistants.
+3. **Long-Term Episodic Memory**: Stores historical session logs. Retrievable memories are weighted using dynamic sliders for **Recency**, **Importance**, and **Relevance**. It supports dynamic decay models and **YMYL (Your Money Your Life) Immunity** to protect sensitive API keys or critical financial/health declarations from decay.
+4. **Long-Term Semantic Memory**: Structured knowledge built through consolidation. Whenever the agent "sleeps", it converts unstructured chat history into structured user profiles, codebase parameters, and an **Interactive Force-Directed Node Graph** (powered by vis.js) demonstrating relationships between entities in real-time.
+
+---
+
+## 🔄 Core Cognitive Skills
+
+*   **Prompt Sanitization**: Automatically redacts system instruction override patterns.
+*   **Active Contradiction Resolution**: Detects inconsistencies between new user inputs and stored memories, popping up conflict resolution dialogs to update the knowledge state dynamically.
+*   **Decay & YMYL Immunity**: Computes memory decay over time (Exponential, Linear, Step) while granting immunity to critical developer configs.
+*   **Frustration Recovery**: Monitors user reminders for frustration (e.g. "You forgot that...") to trigger automated fact extraction and high-priority memory pinning.
 
 ---
 
 ## 🚀 Quick Start
 
-AetherMemory works **100% offline** (Sandbox Mode) out-of-the-box. You can also enter a Google Gemini API Key in the UI to enable real AI embedding search and automated reflections.
+Bottleneck operates **100% offline** (Sandbox Mode) out-of-the-box using local heuristics. You can also supply a Gemini API Key to enable real vector embedding search and LLM-based consolidation.
 
 ### 1. Set Up Virtual Environment & Dependencies
-Open your terminal in the project directory and run:
-
 ```bash
 # Create and activate a virtual environment
 python3 -m venv venv
@@ -40,21 +38,19 @@ source venv/bin/activate
 pip install fastapi uvicorn pydantic pytest
 ```
 
-### 2. Run the Server
-Start the backend server:
+### 2. Run the Cockpit Server
 ```bash
-PYTHONPATH=. python web/server.py
+PYTHONPATH=. venv/bin/uvicorn web.server:app --reload
 ```
 
-### 3. Open the Playground
+### 3. Open the Cockpit UI
 Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your web browser.
 
 ---
 
-## 🎮 Features to Try in the Dashboard
+## 🎮 Features to Explore
 
-* **Chat Panel:** Talk to the agent (e.g. tell it your name, your job, and what you like).
-* **Memory Inspector (Right Tab):** Toggle between tabs to watch short-term summaries, episodic history logs, and semantic profile details update.
-* **Consolidate (Sleep) Button:** Click this in the header to run the reflection cycle. Watch the raw episodic chat logs transform into structured facts and graph nodes.
-* **Retrieval Sliders:** Adjust how much the agent prioritizes recency vs importance vs relevance. Run a search query in the **Retrieval Tester** to see individual scores, and watch matching episodic memories flash green!
-* **Run Tests:** You can verify all memory code by running `PYTHONPATH=. pytest tests/` in your terminal.
+*   **Developer Chat & System Controls**: Instruct the agent with code context (e.g., "We use Python with black formatting" or "The dev database runs on port 5432").
+*   **Interactive Semantic Graph**: Switch to the **Semantic (LTM)** tab to inspect your codebase context rendered as a force-directed layout where nodes (User, Project, Languages) can be dragged, zoomed, and analyzed.
+*   **Decay Configurations**: Toggle decay models and observe how retrieval scores update.
+*   **Unit Tests**: Validate all memory modules by running `PYTHONPATH=. pytest tests/`.

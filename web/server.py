@@ -8,13 +8,13 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
-from aether_memory.sensory import SensoryMemory
-from aether_memory.short_term import ShortTermMemory
-from aether_memory.episodic import EpisodicMemory
-from aether_memory.semantic import SemanticMemory
-from aether_memory.consolidation import MemoryConsolidator, HAS_GEMINI
-from aether_memory.evaluator import MemoryEvaluator
-from aether_memory.skills import (
+from bottleneck.sensory import SensoryMemory
+from bottleneck.short_term import ShortTermMemory
+from bottleneck.episodic import EpisodicMemory
+from bottleneck.semantic import SemanticMemory
+from bottleneck.consolidation import MemoryConsolidator, HAS_GEMINI
+from bottleneck.evaluator import MemoryEvaluator
+from bottleneck.skills import (
     sanitize,
     classify_ymyl_detailed,
     assess_confidence,
@@ -24,7 +24,7 @@ from aether_memory.skills import (
     ActiveRetrieval
 )
 
-app = FastAPI(title="AetherMemory Playground Backend")
+app = FastAPI(title="Bottleneck Memory Agent Backend")
 
 # In-memory agent state
 class AgentHarness:
@@ -77,6 +77,12 @@ class ConflictResolution(BaseModel):
     memory_id: int
     new_fact: str
     resolution: str  # "keep_new", "keep_old"
+
+class DeleteMemoryRequest(BaseModel):
+    memory_type: str  # "episodic", "fact", "profile"
+    target_id: Optional[int] = None
+    target_text: Optional[str] = None
+    target_key: Optional[str] = None
 
 # API Endpoints
 @app.post("/api/chat")
@@ -261,9 +267,9 @@ async def chat_endpoint(payload: ChatMessage):
 
             if ref_lines:
                 refs = "\n".join(ref_lines)
-                assistant_reply = f"I retrieved the following details from my long-term memory to help answer your query:\n{refs}\n\nHow does this memory rank? You can adjust the retrieval sliders (Recency, Importance, Relevance) in the dashboard to see how different memories rank in real-time."
+                assistant_reply = f"I retrieved the following details from my developer memory to ground this response:\n{refs}\n\nYou can adjust the retrieval weights (Recency, Importance, Relevance) in the sidebar to see how they impact context matching."
             else:
-                assistant_reply = "I've saved this message in my episodic memory! Try telling me things like 'My name is Kali', 'I live in India', or 'I like Rust programming', and then click the 'Sleep & Consolidate' button to transfer these into my structured long-term semantic memory."
+                assistant_reply = "I've registered this development detail in my episodic memory! Try telling me things like 'Our project runs on port 5000', 'We use Python with black formatting', or 'My preferred documentation style is Google style', and then click 'Consolidate (Sleep)' to build your interactive developer semantic memory graph."
 
     # 8. Save both turns to Short-Term Memory
     agent.short_term.add_message("user", user_msg)
@@ -428,7 +434,47 @@ async def sleep_consolidation():
 @app.post("/api/clear")
 async def clear_memories():
     agent.clear_all()
-    return {"status": "cleared"}
+    return {
+        "status": "cleared",
+        "episodic": agent.episodic.to_list(),
+        "short_term": agent.short_term.to_dict(),
+        "semantic": agent.semantic.to_dict()
+    }
+
+@app.post("/api/delete_memory")
+async def delete_memory(payload: DeleteMemoryRequest):
+    m_type = payload.memory_type.lower()
+    
+    if m_type == "episodic":
+        if payload.target_id is None:
+            raise HTTPException(status_code=400, detail="Missing target_id for episodic deletion")
+        agent.episodic.memories = [m for m in agent.episodic.memories if m["id"] != payload.target_id]
+        msg = f"Episodic memory ID {payload.target_id} deleted."
+        
+    elif m_type == "fact":
+        if not payload.target_text:
+            raise HTTPException(status_code=400, detail="Missing target_text for fact deletion")
+        agent.semantic.facts = [f for f in agent.semantic.facts if f != payload.target_text]
+        # Also clean up semantic edges related to this fact if applicable
+        msg = f"Semantic fact '{payload.target_text}' deleted."
+        
+    elif m_type == "profile":
+        if not payload.target_key:
+            raise HTTPException(status_code=400, detail="Missing target_key for profile deletion")
+        if payload.target_key in agent.semantic.profile:
+            del agent.semantic.profile[payload.target_key]
+        msg = f"Profile key '{payload.target_key}' deleted."
+        
+    else:
+        raise HTTPException(status_code=400, detail="Invalid memory_type")
+
+    return {
+        "status": "success",
+        "message": msg,
+        "episodic": agent.episodic.to_list(),
+        "short_term": agent.short_term.to_dict(),
+        "semantic": agent.semantic.to_dict()
+    }
 
 @app.post("/api/eval")
 async def run_eval(payload: Dict[str, str] = Body(...)):

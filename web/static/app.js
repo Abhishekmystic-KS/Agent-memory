@@ -355,6 +355,100 @@ function updateSemanticUI(semantic) {
             factsList.appendChild(li);
         });
     }
+
+    // Render interactive vis.js graph
+    updateSemanticGraph(semantic.edges);
+}
+
+let network = null;
+
+function updateSemanticGraph(edges) {
+    const container = document.getElementById('semantic-graph');
+    if (!container) return;
+
+    if (!edges || edges.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding-top: 100px; font-size: 0.85rem;">No relationship links mapped yet. Run Sleep Consolidation to build.</div>';
+        if (network) {
+            network.destroy();
+            network = null;
+        }
+        return;
+    }
+
+    // Extract unique nodes
+    const nodeSet = new Set();
+    const visEdges = [];
+    edges.forEach(e => {
+        nodeSet.add(e.source);
+        nodeSet.add(e.target);
+        visEdges.push({
+            from: e.source,
+            to: e.target,
+            label: e.relation,
+            arrows: 'to',
+            color: { color: 'rgba(255, 255, 255, 0.25)', highlight: 'rgba(99, 102, 241, 0.8)' },
+            font: { color: 'rgba(255, 255, 255, 0.6)', size: 9, strokeWidth: 0 }
+        });
+    });
+
+    const visNodes = Array.from(nodeSet).map(name => {
+        let color = 'rgba(99, 102, 241, 0.15)'; // default
+        let border = 'rgba(99, 102, 241, 0.5)';
+        const nameLower = name.toLowerCase();
+        if (nameLower === 'user' || nameLower === 'developer' || nameLower === 'kali') {
+            color = 'rgba(16, 185, 129, 0.15)';
+            border = 'rgba(16, 185, 129, 0.5)';
+        } else if (nameLower === 'project' || nameLower === 'codebase' || nameLower === 'app' || nameLower === 'server') {
+            color = 'rgba(139, 92, 246, 0.15)';
+            border = 'rgba(139, 92, 246, 0.5)';
+        } else if (nameLower.includes('python') || nameLower.includes('js') || nameLower.includes('react') || nameLower.includes('fastapi') || nameLower.includes('rust')) {
+            color = 'rgba(245, 158, 11, 0.15)';
+            border = 'rgba(245, 158, 11, 0.5)';
+        }
+        return {
+            id: name,
+            label: name,
+            color: { background: color, border: border, highlight: { background: 'rgba(99, 102, 241, 0.35)', border: 'rgba(99, 102, 241, 0.8)' } },
+            font: { color: '#ffffff', face: 'Space Grotesk', size: 11 },
+            shape: 'box',
+            borderWidth: 1,
+            margin: 8,
+            shadow: {
+                enabled: true,
+                color: 'rgba(0,0,0,0.2)',
+                size: 3,
+                x: 1,
+                y: 1
+            }
+        };
+    });
+
+    const data = {
+        nodes: new vis.DataSet(visNodes),
+        edges: new vis.DataSet(visEdges)
+    };
+
+    const options = {
+        physics: {
+            stabilization: true,
+            barnesHut: {
+                gravitationalConstant: -1500,
+                centralGravity: 0.2,
+                springLength: 90,
+                springConstant: 0.05
+            }
+        },
+        interaction: {
+            dragNodes: true,
+            zoomView: true,
+            dragView: true
+        }
+    };
+
+    if (network) {
+        network.destroy();
+    }
+    network = new vis.Network(container, data, options);
 }
 
 // API Call - Run Live evaluation
