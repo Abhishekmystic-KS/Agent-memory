@@ -3,23 +3,6 @@ const geminiKeyInput = document.getElementById('gemini-key');
 const btnSleep = document.getElementById('btn-sleep');
 const btnClear = document.getElementById('btn-clear');
 
-const weightRecency = document.getElementById('weight-recency');
-const weightImportance = document.getElementById('weight-importance');
-const weightRelevance = document.getElementById('weight-relevance');
-
-const valRecency = document.getElementById('val-recency');
-const valImportance = document.getElementById('val-importance');
-const valRelevance = document.getElementById('val-relevance');
-
-const metricPrecision = document.getElementById('metric-precision');
-const metricRecall = document.getElementById('metric-recall');
-const metricCompression = document.getElementById('metric-compression');
-const metricLatency = document.getElementById('metric-latency');
-
-const testQuery = document.getElementById('test-query');
-const btnTestQuery = document.getElementById('btn-test-query');
-const testResults = document.getElementById('test-results');
-
 const modeBadge = document.getElementById('mode-badge');
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
@@ -29,12 +12,12 @@ const wmSystem = document.getElementById('wm-system-instruction');
 const wmSummary = document.getElementById('wm-summary-content');
 const wmBufferList = document.getElementById('wm-buffer-list');
 
-const episodicListContainer = document.getElementById('episodic-list-container');
 const profileTableBody = document.getElementById('profile-table-body');
-const graphEdgesList = document.getElementById('graph-edges-list');
 const factsList = document.getElementById('facts-list');
+const vaultEpisodicList = document.getElementById('vault-episodic-list');
+const nodeCountBadge = document.getElementById('node-count-badge');
 
-// New Advanced Memory Skill Elements
+// Cognitive Core Parameters
 const decayFunction = document.getElementById('decay-function');
 const uncertaintyMode = document.getElementById('uncertainty-mode');
 const ymylEnabled = document.getElementById('ymyl-enabled');
@@ -63,18 +46,41 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// Update label on slider input
-weightRecency.addEventListener('input', (e) => { valRecency.innerText = parseFloat(e.target.value).toFixed(1); updateConfig(); });
-weightImportance.addEventListener('input', (e) => { valImportance.innerText = parseFloat(e.target.value).toFixed(1); updateConfig(); });
-weightRelevance.addEventListener('input', (e) => { valRelevance.innerText = parseFloat(e.target.value).toFixed(1); updateConfig(); });
+// Plugin Snippet Tab Switching
+document.querySelectorAll('.snippet-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.snippet-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.snippet-content').forEach(c => c.style.display = 'none');
+        
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.snippet).style.display = 'block';
+    });
+});
 
-// Update API key and dropdowns
+// Copy integration snippet to clipboard
+window.copySnippet = function(lang) {
+    const code = document.querySelector(`#snippet-${lang} code`).innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById(`btn-copy-${lang}`);
+        const orig = btn.innerText;
+        btn.innerText = "Copied!";
+        btn.style.background = "var(--primary)";
+        btn.style.color = "#ffffff";
+        setTimeout(() => {
+            btn.innerText = orig;
+            btn.style.background = "";
+            btn.style.color = "";
+        }, 1500);
+    });
+};
+
+// Bind configuration change listeners
 geminiKeyInput.addEventListener('change', updateConfig);
 decayFunction.addEventListener('change', updateConfig);
 uncertaintyMode.addEventListener('change', updateConfig);
 ymylEnabled.addEventListener('change', updateConfig);
 
-// Send message on Enter
+// Send message trigger
 chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         sendMessage();
@@ -88,18 +94,15 @@ btnSleep.addEventListener('click', triggerSleep);
 // Reset System
 btnClear.addEventListener('click', resetSystem);
 
-// Direct Query test
-btnTestQuery.addEventListener('click', runQueryTest);
-
 // Initialize settings
 updateConfig();
 
 // API Call - Update Config
 async function updateConfig() {
     const payload = {
-        w_recency: parseFloat(weightRecency.value),
-        w_importance: parseFloat(weightImportance.value),
-        w_relevance: parseFloat(weightRelevance.value),
+        w_recency: 1.0,
+        w_importance: 1.0,
+        w_relevance: 1.0,
         gemini_api_key: geminiKeyInput.value.trim() || null,
         decay_function: decayFunction.value,
         uncertainty_mode: uncertaintyMode.value,
@@ -138,16 +141,16 @@ async function sendMessage() {
     appendMessage('user', msg);
     
     // Add temporary typing indicator
-    const typingIndicator = appendMessage('assistant', 'Thinking...');
+    const typingIndicator = appendMessage('assistant', '<div class="typing-indicator"><span></span><span></span><span></span></div>');
     
+    const start = performance.now();
     try {
-        const start = performance.now();
         const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: msg })
         });
-        const latency = performance.now() - start;
+        
         const data = await res.json();
         
         // Remove typing indicator and add final response
@@ -157,10 +160,6 @@ async function sendMessage() {
         // Update all UI panels with new state
         updateMemoryPanels(data);
         
-        // Update Latency Metric
-        metricLatency.innerText = `${Math.round(latency)}ms`;
-        metricCompression.innerText = `${Math.round(data.compression_ratio * 100)}%`;
-
         // Update prompt sanitization warning
         if (data.sanitization) {
             safetyAlertText.innerHTML = `Prompt sanitization active! Redacted: <strong>${data.sanitization.categories.join(', ')}</strong>`;
@@ -183,28 +182,25 @@ async function sendMessage() {
             ymylStatusItem.style.display = 'none';
         }
 
-        // Update Active Contradictions
-        if (data.active_clarifications && data.active_clarifications.length > 0) {
-            const conflict = data.active_clarifications[0];
-            conflictQuestion.innerText = conflict.question;
-            conflictResolutionBox.style.display = 'flex';
+        // Handle contradiction conflicts
+        if (data.contradiction_detected && data.contradiction_memory_id) {
+            conflictQuestion.innerText = `[Contradiction Detected] ${data.contradiction_question}`;
+            conflictResolutionBox.style.display = 'block';
             
-            btnResolveNew.onclick = () => resolveConflict(conflict.existing_memory_id, conflict.new_fact, 'keep_new');
-            btnResolveOld.onclick = () => resolveConflict(conflict.existing_memory_id, conflict.new_fact, 'keep_old');
+            // Rebind conflict buttons
+            btnResolveNew.onclick = () => resolveConflict(data.contradiction_memory_id, data.contradiction_new_fact, 'keep_new');
+            btnResolveOld.onclick = () => resolveConflict(data.contradiction_memory_id, data.contradiction_new_fact, 'keep_old');
         } else {
             conflictResolutionBox.style.display = 'none';
         }
 
-        // Automatically run evaluation benchmark on the user message context
-        runLiveEval(msg);
-
     } catch (err) {
-        typingIndicator.innerText = `Failed to connect to backend: ${err.message}`;
-        typingIndicator.style.color = 'var(--accent-rose)';
+        typingIndicator.remove();
+        appendMessage('assistant', `[Communication Error] ${err.message}`);
     }
 }
 
-// Conflict Resolution Callback
+// API Call - Resolve contradiction conflict
 async function resolveConflict(memoryId, newFact, resolution) {
     try {
         const res = await fetch('/api/resolve_conflict', {
@@ -218,24 +214,21 @@ async function resolveConflict(memoryId, newFact, resolution) {
         });
         const data = await res.json();
         
-        // Hide conflict container
         conflictResolutionBox.style.display = 'none';
+        appendMessage('assistant', `Memory conflict resolved. State updated to keep target facts.`);
         
-        // Append confirmation system message
-        appendMessage('assistant', `[Conflict Resolved] ${data.message}`);
-        
-        // Refresh views
+        // Update all UI panels with new state
         updateMemoryPanels(data);
     } catch (err) {
         console.error("Conflict resolution failed:", err);
     }
 }
 
-// Appends message to chat screen
+// Helper - Append message bubble to chat panel
 function appendMessage(role, content) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
-    div.innerText = content;
+    div.innerHTML = content;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return div;
@@ -249,7 +242,7 @@ function updateMemoryPanels(data) {
         wmSummary.innerText = data.short_term.rolling_summary;
         wmSummary.classList.remove('empty');
     } else {
-        wmSummary.innerText = "No dialogue compressed yet. Summary will generate when token/turn thresholds are exceeded.";
+        wmSummary.innerText = "No dialogue compressed yet.";
         wmSummary.classList.add('empty');
     }
     
@@ -266,108 +259,103 @@ function updateMemoryPanels(data) {
         });
     }
 
-    // 2. Episodic List
-    episodicListContainer.innerHTML = '';
-    if (data.episodic.length === 0) {
-        episodicListContainer.innerHTML = `
-            <div style="color: var(--text-secondary); text-align: center; margin-top: 2rem; font-size: 0.85rem;">
-                No memories recorded yet. Send a message to populate the episodic stream!
-            </div>`;
-    } else {
-        // Reverse array to show most recent at the top
-        [...data.episodic].reverse().forEach(m => {
-            const dateStr = new Date(m.timestamp * 1000).toLocaleTimeString();
-            const card = document.createElement('div');
-            card.className = 'episode-card';
-            card.id = `episode-${m.id}`;
-            
-            let badges = `<span class="badge importance">Importance: ${m.importance}/10</span>`;
-            if (m.ymyl_category) {
-                badges += `<span class="badge badge-ymyl">${m.ymyl_category.toUpperCase()}</span>`;
-            }
-            if (m.decay_immune) {
-                badges += `<span class="badge badge-immune">IMMUNE</span>`;
-            }
-            
-            card.innerHTML = `
-                <div class="episode-header">
-                    <span>ID: #${m.id}</span>
-                    <span>${dateStr}</span>
-                </div>
-                <div class="episode-text">${escapeHtml(m.content)}</div>
-                <div class="badge-row">
-                    ${badges}
-                </div>
-            `;
-            episodicListContainer.appendChild(card);
-        });
-    }
-
-    // 3. Semantic Store
-    updateSemanticUI(data.semantic);
-}
-
-// Render Semantic structures
-function updateSemanticUI(semantic) {
-    // Profile key values
+    // 2. Memory Vault - Developer Profile Fields
     profileTableBody.innerHTML = '';
-    const profileKeys = Object.keys(semantic.profile);
+    const profileKeys = Object.keys(data.semantic.profile);
     if (profileKeys.length === 0) {
         profileTableBody.innerHTML = `
             <tr>
-                <td colspan="2" style="color: var(--text-secondary); text-align: center;">
+                <td colspan="3" style="color: var(--text-secondary); text-align: center;">
                     No profile keys extracted yet. Run Sleep Consolidation to build.
                 </td>
             </tr>`;
     } else {
         profileKeys.forEach(k => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<th>${escapeHtml(k)}</th><td>${escapeHtml(semantic.profile[k])}</td>`;
+            tr.innerHTML = `
+                <th>${escapeHtml(k)}</th>
+                <td>${escapeHtml(data.semantic.profile[k])}</td>
+                <td style="text-align: center;">
+                    <button class="btn-delete-row" onclick="deleteMemory('profile', { target_key: '${k}' })">Delete</button>
+                </td>`;
             profileTableBody.appendChild(tr);
         });
     }
 
-    // Entity Relation graph elements
-    graphEdgesList.innerHTML = '';
-    if (semantic.edges.length === 0) {
-        graphEdgesList.innerHTML = '<span style="color: var(--text-secondary); text-align: center; font-size: 0.85rem;">No relationship links mapped.</span>';
-    } else {
-        semantic.edges.forEach(e => {
-            const div = document.createElement('div');
-            div.className = 'graph-edge-item';
-            div.innerHTML = `
-                <span class="node source">${escapeHtml(e.source)}</span>
-                <span class="relation-link">--[${escapeHtml(e.relation)}]--></span>
-                <span class="node target">${escapeHtml(e.target)}</span>
-            `;
-            graphEdgesList.appendChild(div);
-        });
-    }
-
-    // Facts list
+    // 3. Memory Vault - Consolidated Facts List
     factsList.innerHTML = '';
-    if (semantic.facts.length === 0) {
-        factsList.innerHTML = '<span style="color: var(--text-secondary);">No facts generated.</span>';
+    if (data.semantic.facts.length === 0) {
+        factsList.innerHTML = '<span style="color: var(--text-secondary); padding: 0.5rem;">No facts consolidated yet.</span>';
     } else {
-        semantic.facts.forEach(f => {
+        data.semantic.facts.forEach(f => {
             const li = document.createElement('li');
-            li.innerText = f;
+            li.className = 'vault-fact-item';
+            // Need to escape fact string for inline JS trigger safely
+            const safeFact = f.replace(/'/g, "\\'");
+            li.innerHTML = `
+                <span>${escapeHtml(f)}</span>
+                <button class="btn-delete-row" onclick="deleteMemory('fact', { target_text: '${safeFact}' })">Delete</button>
+            `;
             factsList.appendChild(li);
         });
     }
 
-    // Render interactive vis.js graph
-    updateSemanticGraph(semantic.edges);
+    // 4. Memory Vault - Episodic logs
+    vaultEpisodicList.innerHTML = '';
+    if (data.episodic.length === 0) {
+        vaultEpisodicList.innerHTML = '<span style="color: var(--text-secondary); padding: 0.5rem;">No logs stored yet.</span>';
+    } else {
+        [...data.episodic].reverse().forEach(m => {
+            const card = document.createElement('div');
+            card.className = 'vault-episodic-item';
+            card.innerHTML = `
+                <div style="flex: 1;">
+                    <strong style="color: var(--primary);">#${m.id}</strong>: ${escapeHtml(m.content)}
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                        Importance: ${m.importance} | YMYL: ${m.ymyl_category || 'None'}
+                    </div>
+                </div>
+                <button class="btn-delete-row" onclick="deleteMemory('episodic', { target_id: ${m.id} })">Delete</button>
+            `;
+            vaultEpisodicList.appendChild(card);
+        });
+    }
+
+    // 5. Update Interactive Synaptic Graph
+    updateSemanticGraph(data.semantic.edges);
 }
+
+// Programmatic deletion of memories
+window.deleteMemory = async function(type, params) {
+    const payload = {
+        memory_type: type,
+        ...params
+    };
+    try {
+        const res = await fetch('/api/delete_memory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === "success") {
+            updateMemoryPanels(data);
+        }
+    } catch (err) {
+        console.error("Failed to delete memory:", err);
+    }
+};
 
 let network = null;
 
+// Renders neural network styled graph representation of entity relationships
 function updateSemanticGraph(edges) {
     const container = document.getElementById('semantic-graph');
     if (!container) return;
 
     if (!edges || edges.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding-top: 100px; font-size: 0.85rem;">No relationship links mapped yet. Run Sleep Consolidation to build.</div>';
+        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding-top: 120px; font-size: 0.85rem;">No synaptic links mapped. Run Sleep Consolidation to build connections.</div>';
+        nodeCountBadge.innerText = '0 NODES';
         if (network) {
             network.destroy();
             network = null;
@@ -375,53 +363,72 @@ function updateSemanticGraph(edges) {
         return;
     }
 
-    // Extract unique nodes
+    // Map degree count of node connection occurrences
+    const nodeDegree = {};
     const nodeSet = new Set();
     const visEdges = [];
+    
     edges.forEach(e => {
         nodeSet.add(e.source);
         nodeSet.add(e.target);
+        
+        nodeDegree[e.source] = (nodeDegree[e.source] || 0) + 1;
+        nodeDegree[e.target] = (nodeDegree[e.target] || 0) + 1;
+
         visEdges.push({
             from: e.source,
             to: e.target,
             label: e.relation,
             arrows: 'to',
-            color: { color: 'rgba(255, 255, 255, 0.25)', highlight: 'rgba(99, 102, 241, 0.8)' },
-            font: { color: 'rgba(255, 255, 255, 0.6)', size: 9, strokeWidth: 0 }
+            color: { color: 'rgba(99, 102, 241, 0.25)', highlight: 'rgba(0, 242, 254, 0.85)' },
+            font: { color: 'rgba(255, 255, 255, 0.45)', size: 9, strokeWidth: 0, face: 'Space Grotesk' },
+            width: 1.5,
+            smooth: { type: 'continuous', roundness: 0.3 }
         });
     });
 
     const visNodes = Array.from(nodeSet).map(name => {
-        let color = 'rgba(99, 102, 241, 0.15)'; // default
-        let border = 'rgba(99, 102, 241, 0.5)';
+        // Glowing Organic Colors matching developer, stacks, configs
+        let nodeColor = '#3b82f6'; // default neon blue
+        let nodeGlowColor = 'rgba(59, 130, 246, 0.4)';
         const nameLower = name.toLowerCase();
+
         if (nameLower === 'user' || nameLower === 'developer' || nameLower === 'kali') {
-            color = 'rgba(16, 185, 129, 0.15)';
-            border = 'rgba(16, 185, 129, 0.5)';
+            nodeColor = '#10b981'; // emerald neuron
+            nodeGlowColor = 'rgba(16, 185, 129, 0.4)';
         } else if (nameLower === 'project' || nameLower === 'codebase' || nameLower === 'app' || nameLower === 'server') {
-            color = 'rgba(139, 92, 246, 0.15)';
-            border = 'rgba(139, 92, 246, 0.5)';
+            nodeColor = '#8b5cf6'; // purple neuron
+            nodeGlowColor = 'rgba(139, 92, 246, 0.4)';
         } else if (nameLower.includes('python') || nameLower.includes('js') || nameLower.includes('react') || nameLower.includes('fastapi') || nameLower.includes('rust')) {
-            color = 'rgba(245, 158, 11, 0.15)';
-            border = 'rgba(245, 158, 11, 0.5)';
+            nodeColor = '#f59e0b'; // amber stack neuron
+            nodeGlowColor = 'rgba(245, 158, 11, 0.4)';
         }
+
+        const degree = nodeDegree[name] || 1;
+        const nodeSize = 10 + (degree * 4); // Scale size by network connection weight
+
         return {
             id: name,
             label: name,
-            color: { background: color, border: border, highlight: { background: 'rgba(99, 102, 241, 0.35)', border: 'rgba(99, 102, 241, 0.8)' } },
-            font: { color: '#ffffff', face: 'Space Grotesk', size: 11 },
-            shape: 'box',
-            borderWidth: 1,
-            margin: 8,
+            color: {
+                background: nodeColor,
+                border: nodeColor,
+                highlight: { background: '#ffffff', border: '#ffffff' }
+            },
+            font: { color: '#ffffff', face: 'Space Grotesk', size: 10, vadjust: -22 },
+            shape: 'dot',
+            size: nodeSize,
             shadow: {
                 enabled: true,
-                color: 'rgba(0,0,0,0.2)',
-                size: 3,
-                x: 1,
-                y: 1
+                color: nodeGlowColor,
+                size: nodeSize + 4,
+                x: 0,
+                y: 0
             }
         };
     });
+
+    nodeCountBadge.innerText = `${visNodes.length} NODES`;
 
     const data = {
         nodes: new vis.DataSet(visNodes),
@@ -432,10 +439,11 @@ function updateSemanticGraph(edges) {
         physics: {
             stabilization: true,
             barnesHut: {
-                gravitationalConstant: -1500,
-                centralGravity: 0.2,
-                springLength: 90,
-                springConstant: 0.05
+                gravitationalConstant: -1800,
+                centralGravity: 0.15,
+                springLength: 95,
+                springConstant: 0.04,
+                damping: 0.09
             }
         },
         interaction: {
@@ -449,23 +457,6 @@ function updateSemanticGraph(edges) {
         network.destroy();
     }
     network = new vis.Network(container, data, options);
-}
-
-// API Call - Run Live evaluation
-async function runLiveEval(query) {
-    try {
-        const res = await fetch('/api/eval', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        });
-        const data = await res.json();
-        
-        metricPrecision.innerText = data.precision !== null ? `${Math.round(data.precision * 100)}%` : "N/A";
-        metricRecall.innerText = data.recall !== null ? `${Math.round(data.recall * 100)}%` : "N/A";
-    } catch (err) {
-        console.error("Live evaluation failed:", err);
-    }
 }
 
 // API Call - Trigger manual Sleep Consolidation
@@ -505,8 +496,28 @@ async function triggerSleep() {
 
         appendMessage('assistant', `[System Consolidation Event]\n${summaryText}`);
         
-        // Refresh semantic view
-        updateSemanticUI(data.semantic);
+        // Refresh UI
+        updateMemoryPanels({
+            short_term: {
+                system_instruction: wmSystem.innerText,
+                rolling_summary: wmSummary.innerText.includes("No dialogue") ? "" : wmSummary.innerText,
+                messages: Array.from(wmBufferList.children).map(div => {
+                    const parts = div.innerText.split(': ');
+                    return { role: parts[0].toLowerCase(), content: parts[1] || "" };
+                })
+            },
+            episodic: Array.from(vaultEpisodicList.children).map(card => {
+                // If it is dummy text, return empty
+                if (card.innerText.includes("No logs stored")) return null;
+                // Parse out values
+                const idMatch = card.innerHTML.match(/#(\d+)/);
+                const id = idMatch ? parseInt(idMatch[1]) : 0;
+                const textMatch = card.innerHTML.match(/<\/strong>: ([\s\S]*?)<div/);
+                const text = textMatch ? textMatch[1].trim() : "";
+                return { id: id, content: text, importance: 5 };
+            }).filter(Boolean),
+            semantic: data.semantic
+        });
         
     } catch (err) {
         appendMessage('assistant', `[Consolidation Event Failed] ${err.message}`);
@@ -521,24 +532,14 @@ async function resetSystem() {
     if (!confirm("Are you sure you want to reset all memory stores? This clears sensory, short-term, episodic, and semantic layers.")) return;
     
     try {
-        await fetch('/api/clear', { method: 'POST' });
+        const res = await fetch('/api/clear', { method: 'POST' });
+        const data = await res.json();
         chatMessages.innerHTML = '';
         appendMessage('assistant', "System Reset! All sensory buffers, working dialogue sessions, episodic memory logs, and semantic knowledge stores have been cleared.");
         
         // Reset local views
-        updateMemoryPanels({
-            short_term: { messages: [], rolling_summary: "", system_instruction: "You are a helpful AI assistant with memory." },
-            episodic: [],
-            semantic: { profile: {}, facts: [], edges: [] },
-            compression_ratio: 0.0
-        });
+        updateMemoryPanels(data);
         
-        metricPrecision.innerText = "N/A";
-        metricRecall.innerText = "N/A";
-        metricCompression.innerText = "0%";
-        metricLatency.innerText = "0ms";
-        testResults.innerHTML = '';
-        testQuery.value = '';
         safetyAlertBar.style.display = 'none';
         conflictResolutionBox.style.display = 'none';
         ymylStatusItem.style.display = 'none';
@@ -546,71 +547,6 @@ async function resetSystem() {
         chatConfidenceBadge.innerText = 'NONE';
     } catch (err) {
         console.error("Reset failed:", err);
-    }
-}
-
-// API Call - Run query search debug testing
-async function runQueryTest() {
-    const query = testQuery.value.trim();
-    if (!query) return;
-
-    btnTestQuery.innerText = "Searching...";
-    btnTestQuery.disabled = true;
-    
-    try {
-        const res = await fetch('/api/eval', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-        });
-        
-        const data = await res.json();
-        
-        testResults.innerHTML = '';
-        if (!data.retrieved || data.retrieved.length === 0) {
-            testResults.innerHTML = '<span style="color: var(--text-secondary);">No matching memories found.</span>';
-            return;
-        }
-
-        data.retrieved.forEach(r => {
-            const div = document.createElement('div');
-            div.className = 'profile-card';
-            div.style.padding = '0.5rem';
-            div.style.background = 'rgba(255, 255, 255, 0.02)';
-            div.style.border = '1px solid var(--border-color)';
-            div.style.fontSize = '0.75rem';
-            div.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 0.25rem;">#${r.id}: "${escapeHtml(r.content)}"</div>
-                <div style="display: flex; justify-content: space-between; color: var(--text-secondary); margin-top: 0.25rem;">
-                    <span>Recency: ${r.s_recency.toFixed(2)}</span>
-                    <span>Importance: ${r.s_importance.toFixed(2)}</span>
-                    <span>Relevance: ${r.s_relevance.toFixed(2)}</span>
-                    <strong style="color: var(--primary);">Total: ${r.total_score.toFixed(2)}</strong>
-                </div>
-            `;
-            testResults.appendChild(div);
-            
-            // Highlight matching episode card if it exists in DOM
-            const card = document.getElementById(`episode-${r.id}`);
-            if (card) {
-                card.classList.add('retrieved-pulse');
-                setTimeout(() => {
-                    card.classList.remove('retrieved-pulse');
-                }, 4000);
-            }
-        });
-
-        // Switch to the episodic tab so the user can see the glowing card!
-        const tabBtn = document.querySelector('.tab-btn[data-tab="episodic-tab"]');
-        if (tabBtn) {
-            tabBtn.click();
-        }
-        
-    } catch (err) {
-        testResults.innerHTML = `<span style="color: var(--accent-rose);">Error: ${err.message}</span>`;
-    } finally {
-        btnTestQuery.disabled = false;
-        btnTestQuery.innerText = "Run Query Test";
     }
 }
 

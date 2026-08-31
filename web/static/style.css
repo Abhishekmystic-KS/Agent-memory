@@ -817,3 +817,106 @@ input[type="range"]::-moz-range-thumb {
     }
 }
 
+/* Plugin Integration Snippets & Code Blocks */
+.snippet-tab-btn:hover {
+    color: var(--text-primary) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+.snippet-tab-btn.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
+.snippet-content pre {
+    margin: 0;
+    padding: 0.6rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 0.75rem;
+}
+.snippet-content code {
+    color: #e2e8f0;
+}
+.copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+}
+.copy-btn:hover {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
+/* Memory Vault Delete Actions & Grid Items */
+.btn-delete-row {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-weight: 600;
+}
+.btn-delete-row:hover {
+    background: rgba(239, 68, 68, 0.15);
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+}
+.vault-fact-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.8rem;
+}
+.vault-fact-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.vault-episodic-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 0.78rem;
+    line-height: 1.3;
+}
+.vault-episodic-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Neural Network Glowing Canvas Effects */
+.vis-network {
+    outline: none;
+}
+#semantic-graph::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+    animation: neuralPulse 6s infinite ease-in-out;
+}
+@keyframes neuralPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
