@@ -20,7 +20,7 @@ This project breaks down agent memory into four simple, logical layers:
 
 ## 🔄 Workflow
 
-![AetherMemory Workflow](https://github.com/user-attachments/assets/3e3270a5-bb74-4b58-a557-67df52d497fb)
+![AetherMemory Workflow](./assets/workflow.png)
 
 ---
 
