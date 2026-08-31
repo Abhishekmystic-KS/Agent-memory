@@ -1,5 +1,6 @@
 import os
 import time
+import re
 import uvicorn
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +14,15 @@ from aether_memory.episodic import EpisodicMemory
 from aether_memory.semantic import SemanticMemory
 from aether_memory.consolidation import MemoryConsolidator, HAS_GEMINI
 from aether_memory.evaluator import MemoryEvaluator
+from aether_memory.skills import (
+    sanitize,
+    classify_ymyl_detailed,
+    assess_confidence,
+    detect_frustration,
+    build_uncertainty_guidance,
+    build_frustration_response,
+    ActiveRetrieval
+)
 
 app = FastAPI(title="AetherMemory Playground Backend")
 
@@ -24,6 +34,7 @@ class AgentHarness:
         self.episodic = EpisodicMemory(decay_rate=0.005)
         self.semantic = SemanticMemory()
         self.consolidator = MemoryConsolidator()
+        self.active_retriever = ActiveRetrieval()
         
         # Configuration
         self.w_recency = 1.0
@@ -32,12 +43,20 @@ class AgentHarness:
         self.gemini_api_key: Optional[str] = None
         self.total_raw_tokens = 0  # To measure compression
         
+        # Advanced Memory Skills Settings
+        self.decay_function = "exponential"
+        self.uncertainty_mode = "helpful"
+        self.ymyl_enabled = True
+        
     def clear_all(self):
         self.sensory.clear()
         self.short_term.clear()
         self.episodic.clear()
         self.semantic.clear()
         self.total_raw_tokens = 0
+        self.decay_function = "exponential"
+        self.uncertainty_mode = "helpful"
+        self.ymyl_enabled = True
 
 agent = AgentHarness()
 
@@ -50,23 +69,40 @@ class ConfigUpdate(BaseModel):
     w_importance: float
     w_relevance: float
     gemini_api_key: Optional[str] = None
+    decay_function: Optional[str] = None
+    uncertainty_mode: Optional[str] = None
+    ymyl_enabled: Optional[bool] = None
+
+class ConflictResolution(BaseModel):
+    memory_id: int
+    new_fact: str
+    resolution: str  # "keep_new", "keep_old"
 
 # API Endpoints
 @app.post("/api/chat")
 async def chat_endpoint(payload: ChatMessage):
-    user_msg = payload.message.strip()
-    if not user_msg:
+    raw_user_msg = payload.message.strip()
+    if not raw_user_msg:
         raise HTTPException(status_code=400, detail="Empty message")
 
-    # 1. Update Sensory memory
+    # 1. Prompt Ingestion Sanitization
+    user_msg, sanitized_categories = sanitize(raw_user_msg)
+    sanitization_info = None
+    if sanitized_categories:
+        sanitization_info = {
+            "original": raw_user_msg,
+            "redacted": user_msg,
+            "categories": sanitized_categories
+        }
+
+    # 2. Update Sensory memory
     agent.sensory.update(raw_input=user_msg, active_goal="Respond to user message")
 
     # Track raw input tokens
     msg_tokens = agent.short_term._estimate_tokens(user_msg)
     agent.total_raw_tokens += msg_tokens
 
-    # 2. Retrieve relevant episodes from Long-Term Episodic Memory
-    # Fetch embedding if in Gemini mode (for now we let retrieve use its fallback or Gemini if configured)
+    # 3. Retrieve relevant episodes from Long-Term Episodic Memory
     query_embedding = None
     if agent.gemini_api_key and HAS_GEMINI:
         try:
@@ -87,92 +123,149 @@ async def chat_endpoint(payload: ChatMessage):
         w_recency=agent.w_recency,
         w_importance=agent.w_importance,
         w_relevance=agent.w_relevance,
-        top_k=3
+        top_k=3,
+        decay_function=agent.decay_function
     )
+
+    # 4. Uncertainty & Confidence Assessment
+    confidence = assess_confidence(retrieved)
+    uncertainty_guidance = build_uncertainty_guidance(confidence, agent.uncertainty_mode, retrieved)
+
+    # 5. Frustration Detection & Recovery
+    frustration_reply = None
+    if detect_frustration(user_msg):
+        frust_response = build_frustration_response(user_msg, confidence, agent.uncertainty_mode)
+        if frust_response:
+            if frust_response.get("action") == "recover_and_pin":
+                pin_fact = frust_response.get("pin_fact")
+                if pin_fact:
+                    # Classify YMYL for pinning
+                    ymyl_res = classify_ymyl_detailed(pin_fact)
+                    ymyl_cat = ymyl_res.category
+                    decay_immune = ymyl_res.is_strong or (ymyl_res.is_ymyl and agent.ymyl_enabled)
+                    
+                    # Pin fact to episodic memory
+                    agent.episodic.add_memory(
+                        content=pin_fact,
+                        importance=9,
+                        ymyl_category=ymyl_cat,
+                        decay_immune=decay_immune
+                    )
+                frustration_reply = frust_response.get("message")
+            elif frust_response.get("action") == "apologize_and_ask":
+                frustration_reply = frust_response.get("message")
 
     # Extract clean text from retrieved memories
     retrieved_texts = [r["memory"]["content"] for r in retrieved]
 
-    # 3. Formulate the response
+    # 6. Active Retrieval / Contradiction Detection
+    # Update active retriever API Key
+    agent.active_retriever.set_api_key(agent.gemini_api_key)
+    conflicts = agent.active_retriever.detect_conflicts(user_msg, retrieved)
+    active_clarifications = [c.to_dict() for c in conflicts]
+
+    # 7. Formulate the response
     assistant_reply = ""
     importance_rating = 5  # Default importance
+    ymyl_category = None
+    decay_immune = False
 
-    if agent.gemini_api_key and HAS_GEMINI:
-        try:
-            import google.generativeai as genai
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            # Format the grounding context
-            grounding_context = ""
-            if retrieved_texts:
-                grounding_context += "\n[RETRIEVED EPISODIC MEMORIES]\n" + "\n".join(f"- {t}" for t in retrieved_texts)
-            if agent.semantic.profile:
-                grounding_context += "\n[USER PROFILE]\n" + "\n".join(f"{k}: {v}" for k, v in agent.semantic.profile.items())
-            if agent.semantic.facts:
-                grounding_context += "\n[CONSOLIDATED FACTS]\n" + "\n".join(f"- {f}" for f in agent.semantic.facts)
-            
-            # Construct short-term message payload
-            prompt_messages = []
-            prompt_messages.append({"role": "system", "content": agent.short_term.system_instruction})
-            if grounding_context:
-                prompt_messages.append({
-                    "role": "system",
-                    "content": f"Use the following retrieved memories and profile details to ground your answers. Do not make up facts if they contradict memory.\n{grounding_context}"
-                })
-            
-            # Add short term history
-            for m in agent.short_term.get_working_context():
-                if m["role"] != "system":
-                    prompt_messages.append(m)
-            
-            prompt_messages.append({"role": "user", "content": user_msg})
-
-            # Call Gemini
-            # Format input for gemini model (translate system prompts/contents to Gemini style)
-            combined_prompt = ""
-            for msg in prompt_messages:
-                combined_prompt += f"{msg['role'].upper()}: {msg['content']}\n\n"
-            combined_prompt += "ASSISTANT:"
-
-            response = model.generate_content(combined_prompt)
-            assistant_reply = response.text.strip()
-
-            # Estimate importance rating using Gemini
-            imp_prompt = f"Rate the personal or informational importance of this user message from 1 to 10 (where 10 is crucial personal facts or permanent preferences, 1 is small talk/greetings). Return ONLY a single integer digit:\nUser: {user_msg}"
-            imp_res = model.generate_content(imp_prompt).text.strip()
-            try:
-                importance_rating = int(re.search(r'\d+', imp_res).group())
-            except:
-                importance_rating = 5
-        except Exception as e:
-            print(f"Gemini response generation failed: {e}")
-            assistant_reply = f"Error in Gemini Mode: {e}. Falling back to Mock responses."
-            agent.gemini_api_key = None  # Reset key or fallback
-
-    # Heuristic/Mock response generation if not using Gemini
-    if not assistant_reply:
-        # Rate importance heuristically
-        importance_rating = 2
-        important_keywords = ["name", "live", "work", "job", "study", "code", "favorite", "like", "dislike", "hate", "remember", "always", "prefer"]
-        if any(kw in user_msg.lower() for kw in important_keywords):
+    # Check YMYL Classification
+    ymyl_res = classify_ymyl_detailed(user_msg)
+    if agent.ymyl_enabled and ymyl_res.is_ymyl:
+        ymyl_category = ymyl_res.category
+        if ymyl_res.is_strong:
             importance_rating = 8
-            
-        # Formulate educational response showing memory usage
-        ref_lines = []
-        if retrieved_texts:
-            ref_lines.append(f"• Retrieved episode: \"{retrieved_texts[0]}\"")
-        if agent.semantic.profile:
-            pref_k = list(agent.semantic.profile.keys())[0]
-            pref_v = agent.semantic.profile[pref_k]
-            ref_lines.append(f"• User profile lookup: {pref_k} = {pref_v}")
-
-        if ref_lines:
-            refs = "\n".join(ref_lines)
-            assistant_reply = f"I retrieved the following details from my long-term memory to help answer your query:\n{refs}\n\nHow does this memory rank? You can adjust the retrieval sliders (Recency, Importance, Relevance) in the dashboard to see how different memories rank in real-time."
+            decay_immune = True
         else:
-            assistant_reply = "I've saved this message in my episodic memory! Try telling me things like 'My name is Kali', 'I live in India', or 'I like Rust programming', and then click the 'Sleep & Consolidate' button to transfer these into my structured long-term semantic memory."
+            importance_rating = 6
+            decay_immune = False
 
-    # 4. Save both turns to Short-Term Memory
+    # If frustration was handled, return that reply
+    if frustration_reply:
+        assistant_reply = frustration_reply
+    # If active retrieval found a conflict, override reply to warn/ask user
+    elif conflicts:
+        assistant_reply = f"Hold on! {conflicts[0].question}"
+    else:
+        # Normal chat generation (Gemini or Mock)
+        if agent.gemini_api_key and HAS_GEMINI:
+            try:
+                import google.generativeai as genai
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Format the grounding context
+                grounding_context = ""
+                if retrieved_texts:
+                    grounding_context += "\n[RETRIEVED EPISODIC MEMORIES]\n" + "\n".join(f"- {t}" for t in retrieved_texts)
+                if agent.semantic.profile:
+                    grounding_context += "\n[USER PROFILE]\n" + "\n".join(f"{k}: {v}" for k, v in agent.semantic.profile.items())
+                if agent.semantic.facts:
+                    grounding_context += "\n[CONSOLIDATED FACTS]\n" + "\n".join(f"- {f}" for f in agent.semantic.facts)
+                
+                # Construct short-term message payload
+                prompt_messages = []
+                prompt_messages.append({"role": "system", "content": agent.short_term.system_instruction})
+                if grounding_context:
+                    prompt_messages.append({
+                        "role": "system",
+                        "content": f"Use the following retrieved memories and profile details to ground your answers. Do not make up facts if they contradict memory.\n{grounding_context}"
+                    })
+                
+                # Add short term history
+                for m in agent.short_term.get_working_context():
+                    if m["role"] != "system":
+                        prompt_messages.append(m)
+                
+                prompt_messages.append({"role": "user", "content": user_msg})
+                
+                # Call Gemini
+                combined_prompt = ""
+                for msg in prompt_messages:
+                    combined_prompt += f"{msg['role'].upper()}: {msg['content']}\n\n"
+                combined_prompt += "ASSISTANT:"
+
+                response = model.generate_content(combined_prompt)
+                assistant_reply = response.text.strip()
+
+                # Estimate importance rating using Gemini if not already boosted by YMYL
+                if importance_rating < 8:
+                    imp_prompt = f"Rate the personal or informational importance of this user message from 1 to 10 (where 10 is crucial personal facts or permanent preferences, 1 is small talk/greetings). Return ONLY a single integer digit:\nUser: {user_msg}"
+                    imp_res = model.generate_content(imp_prompt).text.strip()
+                    try:
+                        importance_rating = int(re.search(r'\d+', imp_res).group())
+                    except:
+                        pass
+            except Exception as e:
+                print(f"Gemini response generation failed: {e}")
+                assistant_reply = f"Error in Gemini Mode: {e}. Falling back to Mock responses."
+                agent.gemini_api_key = None  # Reset key or fallback
+
+        # Heuristic/Mock response generation if not using Gemini
+        if not assistant_reply:
+            if importance_rating < 8:
+                # Rate importance heuristically
+                importance_rating = 2
+                important_keywords = ["name", "live", "work", "job", "study", "code", "favorite", "like", "dislike", "hate", "remember", "always", "prefer"]
+                if any(kw in user_msg.lower() for kw in important_keywords):
+                    importance_rating = 8
+
+            # Formulate response showing memory usage
+            ref_lines = []
+            if retrieved_texts:
+                ref_lines.append(f"• Retrieved episode: \"{retrieved_texts[0]}\"")
+            if agent.semantic.profile:
+                pref_k = list(agent.semantic.profile.keys())[0]
+                pref_v = agent.semantic.profile[pref_k]
+                ref_lines.append(f"• User profile lookup: {pref_k} = {pref_v}")
+
+            if ref_lines:
+                refs = "\n".join(ref_lines)
+                assistant_reply = f"I retrieved the following details from my long-term memory to help answer your query:\n{refs}\n\nHow does this memory rank? You can adjust the retrieval sliders (Recency, Importance, Relevance) in the dashboard to see how different memories rank in real-time."
+            else:
+                assistant_reply = "I've saved this message in my episodic memory! Try telling me things like 'My name is Kali', 'I live in India', or 'I like Rust programming', and then click the 'Sleep & Consolidate' button to transfer these into my structured long-term semantic memory."
+
+    # 8. Save both turns to Short-Term Memory
     agent.short_term.add_message("user", user_msg)
     agent.short_term.add_message("assistant", assistant_reply)
 
@@ -180,23 +273,31 @@ async def chat_endpoint(payload: ChatMessage):
     reply_tokens = agent.short_term._estimate_tokens(assistant_reply)
     agent.total_raw_tokens += reply_tokens
 
-    # 5. Save to Long-Term Episodic Memory
-    # Embed if using Gemini
-    ep_embedding = None
-    if agent.gemini_api_key and HAS_GEMINI:
-        try:
-            import google.generativeai as genai
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=user_msg,
-                task_type="retrieval_document"
-            )
-            ep_embedding = result['embedding']
-        except:
-            pass
+    # 9. Save to Long-Term Episodic Memory
+    # (Skip saving if there was an active contradiction block, to let the user resolve it first, or if we had a frustration recovery which already handled it)
+    if not conflicts and not frustration_reply:
+        # Embed if using Gemini
+        ep_embedding = None
+        if agent.gemini_api_key and HAS_GEMINI:
+            try:
+                import google.generativeai as genai
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=user_msg,
+                    task_type="retrieval_document"
+                )
+                ep_embedding = result['embedding']
+            except:
+                pass
 
-    # Save user memory
-    agent.episodic.add_memory(content=user_msg, importance=importance_rating, embedding=ep_embedding)
+        # Save user memory
+        agent.episodic.add_memory(
+            content=user_msg,
+            importance=importance_rating,
+            embedding=ep_embedding,
+            ymyl_category=ymyl_category,
+            decay_immune=decay_immune
+        )
 
     # Get working context token count for evaluation
     working_tokens = agent.short_term.get_total_tokens()
@@ -222,7 +323,58 @@ async def chat_endpoint(payload: ChatMessage):
         "semantic": agent.semantic.to_dict(),
         "compression_ratio": round(compression, 2),
         "raw_tokens": agent.total_raw_tokens,
-        "working_tokens": working_tokens
+        "working_tokens": working_tokens,
+        "sanitization": sanitization_info,
+        "confidence": confidence,
+        "ymyl": {
+            "category": ymyl_category,
+            "confidence": ymyl_res.confidence,
+            "decay_immune": decay_immune
+        },
+        "active_clarifications": active_clarifications,
+        "uncertainty_guidance": uncertainty_guidance
+    }
+
+@app.post("/api/resolve_conflict")
+async def resolve_conflict(payload: ConflictResolution):
+    """
+    Handles resolving a contradiction detected by active retrieval.
+    """
+    mem_id = payload.memory_id
+    new_fact = payload.new_fact.strip()
+    res = payload.resolution.lower().strip()
+
+    if res == "keep_new":
+        # Delete old conflicting memory
+        agent.episodic.memories = [m for m in agent.episodic.memories if m["id"] != mem_id]
+        
+        # Save new memory
+        ymyl_res = classify_ymyl_detailed(new_fact)
+        ymyl_cat = ymyl_res.category
+        decay_immune = ymyl_res.is_strong or (ymyl_res.is_ymyl and agent.ymyl_enabled)
+        importance = 8 if ymyl_res.is_strong else 7
+        
+        agent.episodic.add_memory(
+            content=new_fact,
+            importance=importance,
+            ymyl_category=ymyl_cat,
+            decay_immune=decay_immune
+        )
+        msg = f"Resolution applied: old memory ID {mem_id} removed, and new fact stored: '{new_fact}'"
+    elif res == "keep_old":
+        # Keep old memory, do not save new fact
+        msg = f"Resolution applied: kept existing memory ID {mem_id}, discarded new fact: '{new_fact}'"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid resolution action")
+
+    # Add confirmation to short term context
+    agent.short_term.add_message("system", f"[Conflict Resolved] {msg}")
+    
+    return {
+        "status": "success",
+        "message": msg,
+        "episodic": agent.episodic.to_list(),
+        "short_term": agent.short_term.to_dict()
     }
 
 @app.post("/api/config")
@@ -231,19 +383,31 @@ async def update_config(config: ConfigUpdate):
     agent.w_importance = config.w_importance
     agent.w_relevance = config.w_relevance
     
+    if config.decay_function is not None:
+        agent.decay_function = config.decay_function.strip()
+    if config.uncertainty_mode is not None:
+        agent.uncertainty_mode = config.uncertainty_mode.strip()
+    if config.ymyl_enabled is not None:
+        agent.ymyl_enabled = config.ymyl_enabled
+    
     if config.gemini_api_key is not None:
         key = config.gemini_api_key.strip()
         if key:
             agent.gemini_api_key = key
             agent.consolidator.set_api_key(key)
+            agent.active_retriever.set_api_key(key)
         else:
             agent.gemini_api_key = None
             agent.consolidator.set_api_key(None)
+            agent.active_retriever.set_api_key(None)
             
     return {"status": "success", "config": {
         "w_recency": agent.w_recency,
         "w_importance": agent.w_importance,
         "w_relevance": agent.w_relevance,
+        "decay_function": agent.decay_function,
+        "uncertainty_mode": agent.uncertainty_mode,
+        "ymyl_enabled": agent.ymyl_enabled,
         "gemini_mode_active": agent.gemini_api_key is not None
     }}
 
@@ -287,7 +451,8 @@ async def run_eval(payload: Dict[str, str] = Body(...)):
         w_recency=agent.w_recency,
         w_importance=agent.w_importance,
         w_relevance=agent.w_relevance,
-        top_k=3
+        top_k=3,
+        decay_function=agent.decay_function
     )
     latency_ms = (time.time() - start_time) * 1000
 

@@ -3,6 +3,7 @@ import math
 import re
 from collections import Counter
 from typing import List, Dict, Any, Optional
+from aether_memory.skills.decay import compute_recency_score
 
 def calculate_local_similarity(text1: str, text2: str) -> float:
     """
@@ -55,7 +56,7 @@ class EpisodicMemory:
         self.memories: List[Dict[str, Any]] = []
         self.decay_rate = decay_rate  # lambda for exponential recency decay S = exp(-lambda * delta_t)
 
-    def add_memory(self, content: str, importance: int, embedding: Optional[List[float]] = None, timestamp: Optional[float] = None):
+    def add_memory(self, content: str, importance: int, embedding: Optional[List[float]] = None, timestamp: Optional[float] = None, ymyl_category: Optional[str] = None, decay_immune: bool = False):
         """
         Record a new episodic memory.
         """
@@ -64,12 +65,15 @@ class EpisodicMemory:
             "content": content,
             "importance": min(max(importance, 1), 10),
             "embedding": embedding,
-            "timestamp": timestamp if timestamp is not None else time.time()
+            "timestamp": timestamp if timestamp is not None else time.time(),
+            "ymyl_category": ymyl_category,
+            "decay_immune": decay_immune
         })
 
     def retrieve(self, query: str, query_embedding: Optional[List[float]] = None, 
                  w_recency: float = 1.0, w_importance: float = 1.0, w_relevance: float = 1.0,
-                 top_k: int = 3, current_time: Optional[float] = None) -> List[Dict[str, Any]]:
+                 top_k: int = 3, current_time: Optional[float] = None,
+                 decay_function: str = "exponential") -> List[Dict[str, Any]]:
         """
         Retrieves top_k memories based on the hybrid scoring function:
         Score = w_recency * S_recency + w_importance * S_importance + w_relevance * S_relevance
@@ -86,10 +90,11 @@ class EpisodicMemory:
         raw_relevances = []
 
         for m in self.memories:
-            # 1. Recency: exp(-lambda * delta_t_hours)
-            delta_t_seconds = max(now - m["timestamp"], 0)
-            delta_t_hours = delta_t_seconds / 3600.0  # Normalize time difference to hours
-            s_recency = math.exp(-self.decay_rate * delta_t_hours)
+            # 1. Recency: dynamically computed or bypassed if immune
+            if m.get("decay_immune", False):
+                s_recency = 1.0
+            else:
+                s_recency = compute_recency_score(m["timestamp"], now, decay_function, self.decay_rate)
             raw_recencies.append(s_recency)
 
             # 2. Importance

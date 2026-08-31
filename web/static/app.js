@@ -34,6 +34,24 @@ const profileTableBody = document.getElementById('profile-table-body');
 const graphEdgesList = document.getElementById('graph-edges-list');
 const factsList = document.getElementById('facts-list');
 
+// New Advanced Memory Skill Elements
+const decayFunction = document.getElementById('decay-function');
+const uncertaintyMode = document.getElementById('uncertainty-mode');
+const ymylEnabled = document.getElementById('ymyl-enabled');
+
+const chatConfidenceBadge = document.getElementById('chat-confidence-badge');
+const ymylStatusItem = document.getElementById('ymyl-status-item');
+const chatYmylBadge = document.getElementById('chat-ymyl-badge');
+const chatImmuneBadge = document.getElementById('chat-immune-badge');
+
+const safetyAlertBar = document.getElementById('safety-alert-bar');
+const safetyAlertText = document.getElementById('safety-alert-text');
+
+const conflictResolutionBox = document.getElementById('conflict-resolution-box');
+const conflictQuestion = document.getElementById('conflict-question');
+const btnResolveNew = document.getElementById('btn-resolve-new');
+const btnResolveOld = document.getElementById('btn-resolve-old');
+
 // Tab Switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -50,10 +68,11 @@ weightRecency.addEventListener('input', (e) => { valRecency.innerText = parseFlo
 weightImportance.addEventListener('input', (e) => { valImportance.innerText = parseFloat(e.target.value).toFixed(1); updateConfig(); });
 weightRelevance.addEventListener('input', (e) => { valRelevance.innerText = parseFloat(e.target.value).toFixed(1); updateConfig(); });
 
-// Update API key
-geminiKeyInput.addEventListener('change', () => {
-    updateConfig();
-});
+// Update API key and dropdowns
+geminiKeyInput.addEventListener('change', updateConfig);
+decayFunction.addEventListener('change', updateConfig);
+uncertaintyMode.addEventListener('change', updateConfig);
+ymylEnabled.addEventListener('change', updateConfig);
 
 // Send message on Enter
 chatInput.addEventListener('keydown', (e) => {
@@ -72,13 +91,19 @@ btnClear.addEventListener('click', resetSystem);
 // Direct Query test
 btnTestQuery.addEventListener('click', runQueryTest);
 
+// Initialize settings
+updateConfig();
+
 // API Call - Update Config
 async function updateConfig() {
     const payload = {
         w_recency: parseFloat(weightRecency.value),
         w_importance: parseFloat(weightImportance.value),
         w_relevance: parseFloat(weightRelevance.value),
-        gemini_api_key: geminiKeyInput.value.trim() || null
+        gemini_api_key: geminiKeyInput.value.trim() || null,
+        decay_function: decayFunction.value,
+        uncertainty_mode: uncertaintyMode.value,
+        ymyl_enabled: ymylEnabled.checked
     };
 
     try {
@@ -136,12 +161,73 @@ async function sendMessage() {
         metricLatency.innerText = `${Math.round(latency)}ms`;
         metricCompression.innerText = `${Math.round(data.compression_ratio * 100)}%`;
 
+        // Update prompt sanitization warning
+        if (data.sanitization) {
+            safetyAlertText.innerHTML = `Prompt sanitization active! Redacted: <strong>${data.sanitization.categories.join(', ')}</strong>`;
+            safetyAlertBar.style.display = 'flex';
+        } else {
+            safetyAlertBar.style.display = 'none';
+        }
+
+        // Update retrieval confidence
+        const conf = data.confidence || 'none';
+        chatConfidenceBadge.innerText = conf.toUpperCase();
+        chatConfidenceBadge.className = `badge badge-${conf.toLowerCase()}`;
+
+        // Update YMYL badges
+        if (data.ymyl && data.ymyl.category) {
+            chatYmylBadge.innerText = data.ymyl.category.toUpperCase();
+            chatImmuneBadge.style.display = data.ymyl.decay_immune ? 'inline-block' : 'none';
+            ymylStatusItem.style.display = 'flex';
+        } else {
+            ymylStatusItem.style.display = 'none';
+        }
+
+        // Update Active Contradictions
+        if (data.active_clarifications && data.active_clarifications.length > 0) {
+            const conflict = data.active_clarifications[0];
+            conflictQuestion.innerText = conflict.question;
+            conflictResolutionBox.style.display = 'flex';
+            
+            btnResolveNew.onclick = () => resolveConflict(conflict.memory_id, conflict.new_fact, 'keep_new');
+            btnResolveOld.onclick = () => resolveConflict(conflict.memory_id, conflict.new_fact, 'keep_old');
+        } else {
+            conflictResolutionBox.style.display = 'none';
+        }
+
         // Automatically run evaluation benchmark on the user message context
         runLiveEval(msg);
 
     } catch (err) {
         typingIndicator.innerText = `Failed to connect to backend: ${err.message}`;
         typingIndicator.style.color = 'var(--accent-rose)';
+    }
+}
+
+// Conflict Resolution Callback
+async function resolveConflict(memoryId, newFact, resolution) {
+    try {
+        const res = await fetch('/api/resolve_conflict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                memory_id: memoryId,
+                new_fact: newFact,
+                resolution: resolution
+            })
+        });
+        const data = await res.json();
+        
+        // Hide conflict container
+        conflictResolutionBox.style.display = 'none';
+        
+        // Append confirmation system message
+        appendMessage('assistant', `[Conflict Resolved] ${data.message}`);
+        
+        // Refresh views
+        updateMemoryPanels(data);
+    } catch (err) {
+        console.error("Conflict resolution failed:", err);
     }
 }
 
@@ -194,6 +280,15 @@ function updateMemoryPanels(data) {
             const card = document.createElement('div');
             card.className = 'episode-card';
             card.id = `episode-${m.id}`;
+            
+            let badges = `<span class="badge importance">Importance: ${m.importance}/10</span>`;
+            if (m.ymyl_category) {
+                badges += `<span class="badge badge-ymyl">${m.ymyl_category.toUpperCase()}</span>`;
+            }
+            if (m.decay_immune) {
+                badges += `<span class="badge badge-immune">IMMUNE</span>`;
+            }
+            
             card.innerHTML = `
                 <div class="episode-header">
                     <span>ID: #${m.id}</span>
@@ -201,7 +296,7 @@ function updateMemoryPanels(data) {
                 </div>
                 <div class="episode-text">${escapeHtml(m.content)}</div>
                 <div class="badge-row">
-                    <span class="badge importance">Importance: ${m.importance}/10</span>
+                    ${badges}
                 </div>
             `;
             episodicListContainer.appendChild(card);
@@ -350,6 +445,11 @@ async function resetSystem() {
         metricLatency.innerText = "0ms";
         testResults.innerHTML = '';
         testQuery.value = '';
+        safetyAlertBar.style.display = 'none';
+        conflictResolutionBox.style.display = 'none';
+        ymylStatusItem.style.display = 'none';
+        chatConfidenceBadge.className = 'badge badge-none';
+        chatConfidenceBadge.innerText = 'NONE';
     } catch (err) {
         console.error("Reset failed:", err);
     }

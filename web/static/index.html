@@ -96,6 +96,38 @@
                     <div id="test-results" style="font-size: 0.75rem; max-height: 120px; overflow-y: auto; margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem;"></div>
                 </div>
 
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Advanced memory options -->
+                <div class="settings-section">
+                    <h3>Advanced Memory Settings</h3>
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 0.5rem;">
+                        <div class="control-row">
+                            <label for="decay-function">Decay Model</label>
+                            <select id="decay-function" class="select-input">
+                                <option value="exponential">Exponential Decay</option>
+                                <option value="linear">Linear Decay</option>
+                                <option value="step">Step-Interval Decay</option>
+                                <option value="none">No Decay (Static)</option>
+                            </select>
+                        </div>
+                        <div class="control-row">
+                            <label for="uncertainty-mode">Uncertainty Mode</label>
+                            <select id="uncertainty-mode" class="select-input">
+                                <option value="strict">Strict (Refuse Unknowns)</option>
+                                <option value="helpful" selected>Helpful (Hedge Unknowns)</option>
+                                <option value="creative">Creative (Guess Unknowns)</option>
+                            </select>
+                        </div>
+                        <div class="control-row checkbox-row">
+                            <label for="ymyl-enabled" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none; font-size: 0.8rem; font-weight: 500;">
+                                <input type="checkbox" id="ymyl-enabled" checked>
+                                <span>Enable YMYL Prioritization</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -108,6 +140,33 @@
                 </span>
             </div>
             <div class="chat-container">
+                <!-- Status Badges Bar -->
+                <div class="chat-status-bar">
+                    <div class="status-item">
+                        <span>Confidence:</span>
+                        <span id="chat-confidence-badge" class="badge badge-none">NONE</span>
+                    </div>
+                    <div class="status-item" id="ymyl-status-item" style="display: none;">
+                        <span>YMYL:</span>
+                        <span id="chat-ymyl-badge" class="badge badge-ymyl">HEALTH</span>
+                        <span id="chat-immune-badge" class="badge badge-immune">IMMUNE</span>
+                    </div>
+                </div>
+
+                <div id="safety-alert-bar" class="safety-alert" style="display: none;">
+                    <span class="alert-icon">⚠️</span>
+                    <span id="safety-alert-text">Prompt injection detected and sanitized!</span>
+                </div>
+
+                <div id="conflict-resolution-box" class="conflict-box" style="display: none;">
+                    <h4>⚠️ Memory Contradiction Detected</h4>
+                    <p id="conflict-question">You previously said X, but now you say Y. Which one is correct?</p>
+                    <div class="conflict-buttons">
+                        <button id="btn-resolve-new" class="btn-conflict">Use New Details</button>
+                        <button id="btn-resolve-old" class="btn-conflict secondary">Keep Old Details</button>
+                    </div>
+                </div>
+
                 <div class="chat-messages" id="chat-messages">
                     <div class="message assistant">
                         Hello! I am an AI agent with sensory, short-term, and long-term memory systems. 
