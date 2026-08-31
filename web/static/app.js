@@ -189,8 +189,8 @@ async function sendMessage() {
             conflictQuestion.innerText = conflict.question;
             conflictResolutionBox.style.display = 'flex';
             
-            btnResolveNew.onclick = () => resolveConflict(conflict.memory_id, conflict.new_fact, 'keep_new');
-            btnResolveOld.onclick = () => resolveConflict(conflict.memory_id, conflict.new_fact, 'keep_old');
+            btnResolveNew.onclick = () => resolveConflict(conflict.existing_memory_id, conflict.new_fact, 'keep_new');
+            btnResolveOld.onclick = () => resolveConflict(conflict.existing_memory_id, conflict.new_fact, 'keep_old');
         } else {
             conflictResolutionBox.style.display = 'none';
         }

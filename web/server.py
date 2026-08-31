@@ -374,7 +374,10 @@ async def resolve_conflict(payload: ConflictResolution):
         "status": "success",
         "message": msg,
         "episodic": agent.episodic.to_list(),
-        "short_term": agent.short_term.to_dict()
+        "short_term": agent.short_term.to_dict(),
+        "semantic": agent.semantic.to_dict(),
+        "sensory": agent.sensory.to_dict(),
+        "compression_ratio": round(MemoryEvaluator.calculate_compression(agent.total_raw_tokens, agent.short_term.get_total_tokens()), 2)
     }
 
 @app.post("/api/config")
