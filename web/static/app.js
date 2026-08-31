@@ -348,116 +348,255 @@ window.deleteMemory = async function(type, params) {
 
 let network = null;
 
-// Renders neural network styled graph representation of entity relationships
-function updateSemanticGraph(edges) {
-    const container = document.getElementById('semantic-graph');
-    if (!container) return;
+// ── Demo seed edges shown before consolidation ────────────────────────────────
+const DEMO_EDGES = [
+    // Developer identity
+    { source: 'Developer',   target: 'Python',       relation: 'uses' },
+    { source: 'Developer',   target: 'FastAPI',      relation: 'builds with' },
+    { source: 'Developer',   target: 'Project',      relation: 'owns' },
+    { source: 'Developer',   target: 'Claude',       relation: 'works with' },
+    { source: 'Developer',   target: 'VS Code',      relation: 'edits in' },
+    { source: 'Developer',   target: 'Git',          relation: 'versions with' },
+    { source: 'Developer',   target: 'Linux',        relation: 'runs on' },
+    { source: 'Developer',   target: 'Terminal',     relation: 'uses' },
+    { source: 'Developer',   target: 'Docker',       relation: 'containerises with' },
+    { source: 'Developer',   target: 'REST API',     relation: 'designs' },
 
-    if (!edges || edges.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding-top: 120px; font-size: 0.85rem;">No synaptic links mapped. Run Sleep Consolidation to build connections.</div>';
-        nodeCountBadge.innerText = '0 NODES';
-        if (network) {
-            network.destroy();
-            network = null;
-        }
-        return;
-    }
+    // Project
+    { source: 'Project',     target: 'FastAPI',      relation: 'powered by' },
+    { source: 'Project',     target: 'Bottleneck',   relation: 'uses' },
+    { source: 'Project',     target: 'PostgreSQL',   relation: 'stores data in' },
+    { source: 'Project',     target: 'Redis',        relation: 'caches with' },
+    { source: 'Project',     target: 'Docker',       relation: 'deployed via' },
+    { source: 'Project',     target: 'GitHub',       relation: 'hosted on' },
+    { source: 'Project',     target: 'REST API',     relation: 'exposes' },
+    { source: 'Project',     target: 'Port 8000',    relation: 'serves on' },
+    { source: 'Project',     target: 'Tests',        relation: 'validated by' },
+    { source: 'Project',     target: 'CI/CD',        relation: 'automated by' },
 
-    // Map degree count of node connection occurrences
-    const nodeDegree = {};
-    const nodeSet = new Set();
-    const visEdges = [];
-    
-    edges.forEach(e => {
-        nodeSet.add(e.source);
-        nodeSet.add(e.target);
-        
-        nodeDegree[e.source] = (nodeDegree[e.source] || 0) + 1;
-        nodeDegree[e.target] = (nodeDegree[e.target] || 0) + 1;
+    // Bottleneck memory system
+    { source: 'Bottleneck',  target: 'Memory',       relation: 'manages' },
+    { source: 'Bottleneck',  target: 'Agent',        relation: 'powers' },
+    { source: 'Bottleneck',  target: 'Dashboard',    relation: 'serves' },
+    { source: 'Bottleneck',  target: 'REST API',     relation: 'exposes' },
+    { source: 'Bottleneck',  target: 'vis.js',       relation: 'renders with' },
 
-        visEdges.push({
-            from: e.source,
-            to: e.target,
-            label: e.relation,
-            arrows: 'to',
-            color: { color: 'rgba(99, 102, 241, 0.25)', highlight: 'rgba(0, 242, 254, 0.85)' },
-            font: { color: 'rgba(255, 255, 255, 0.45)', size: 9, strokeWidth: 0, face: 'Space Grotesk' },
-            width: 1.5,
-            smooth: { type: 'continuous', roundness: 0.3 }
-        });
-    });
+    // Memory architecture
+    { source: 'Memory',      target: 'Episodic',     relation: 'tier' },
+    { source: 'Memory',      target: 'Semantic',     relation: 'tier' },
+    { source: 'Memory',      target: 'Sensory',      relation: 'tier' },
+    { source: 'Memory',      target: 'Short-Term',   relation: 'tier' },
+    { source: 'Memory',      target: 'Consolidation',relation: 'uses' },
+    { source: 'Memory',      target: 'Decay',        relation: 'applies' },
+    { source: 'Episodic',    target: 'Timestamp',    relation: 'records' },
+    { source: 'Episodic',    target: 'Importance',   relation: 'scores' },
+    { source: 'Semantic',    target: 'Graph',        relation: 'builds' },
+    { source: 'Semantic',    target: 'Facts',        relation: 'stores' },
+    { source: 'Semantic',    target: 'Profile',      relation: 'extracts' },
+    { source: 'Sensory',     target: 'Buffer',       relation: 'holds' },
+    { source: 'Short-Term',  target: 'Context',      relation: 'stores' },
+    { source: 'Short-Term',  target: 'Summary',      relation: 'compresses to' },
+    { source: 'Consolidation',target: 'Gemini',      relation: 'calls' },
+    { source: 'Consolidation',target: 'Heuristics',  relation: 'fallback to' },
 
-    const visNodes = Array.from(nodeSet).map(name => {
-        // Glowing Organic Colors matching developer, stacks, configs
-        let nodeColor = '#3b82f6'; // default neon blue
-        let nodeGlowColor = 'rgba(59, 130, 246, 0.4)';
-        const nameLower = name.toLowerCase();
+    // Claude / AI layer
+    { source: 'Claude',      target: 'Bottleneck',   relation: 'integrates' },
+    { source: 'Claude',      target: 'Developer',    relation: 'assists' },
+    { source: 'Claude',      target: 'Context',      relation: 'reads' },
+    { source: 'Claude',      target: 'Gemini',       relation: 'sibling model' },
+    { source: 'Claude',      target: 'Codex',        relation: 'related to' },
+    { source: 'Codex',       target: 'Codebase',     relation: 'understands' },
+    { source: 'Gemini',      target: 'Embeddings',   relation: 'generates' },
+    { source: 'Embeddings',  target: 'Semantic',     relation: 'feeds into' },
 
-        if (nameLower === 'user' || nameLower === 'developer' || nameLower === 'kali') {
-            nodeColor = '#10b981'; // emerald neuron
-            nodeGlowColor = 'rgba(16, 185, 129, 0.4)';
-        } else if (nameLower === 'project' || nameLower === 'codebase' || nameLower === 'app' || nameLower === 'server') {
-            nodeColor = '#8b5cf6'; // purple neuron
-            nodeGlowColor = 'rgba(139, 92, 246, 0.4)';
-        } else if (nameLower.includes('python') || nameLower.includes('js') || nameLower.includes('react') || nameLower.includes('fastapi') || nameLower.includes('rust')) {
-            nodeColor = '#f59e0b'; // amber stack neuron
-            nodeGlowColor = 'rgba(245, 158, 11, 0.4)';
-        }
+    // Python stack
+    { source: 'Python',      target: 'FastAPI',      relation: 'runs' },
+    { source: 'Python',      target: 'Pydantic',     relation: 'validates with' },
+    { source: 'Python',      target: 'Pytest',       relation: 'tested by' },
+    { source: 'Python',      target: 'Uvicorn',      relation: 'served by' },
+    { source: 'Python',      target: 'asyncio',      relation: 'async via' },
+    { source: 'Python',      target: 'Type Hints',   relation: 'enforced with' },
+    { source: 'FastAPI',     target: 'Uvicorn',      relation: 'uses' },
+    { source: 'FastAPI',     target: 'Pydantic',     relation: 'schema via' },
+    { source: 'FastAPI',     target: 'Port 8000',    relation: 'listens on' },
+    { source: 'FastAPI',     target: 'Endpoints',    relation: 'defines' },
+    { source: 'Endpoints',   target: '/api/chat',    relation: 'includes' },
+    { source: 'Endpoints',   target: '/api/sleep',   relation: 'includes' },
+    { source: 'Endpoints',   target: '/api/file',    relation: 'includes' },
+    { source: 'Tests',       target: 'Pytest',       relation: 'uses' },
 
+    // Frontend stack
+    { source: 'Dashboard',   target: 'HTML',         relation: 'structured with' },
+    { source: 'Dashboard',   target: 'CSS',          relation: 'styled with' },
+    { source: 'Dashboard',   target: 'JavaScript',   relation: 'scripted with' },
+    { source: 'Dashboard',   target: 'vis.js',       relation: 'graphs with' },
+    { source: 'Dashboard',   target: 'Neural Map',   relation: 'shows' },
+    { source: 'Dashboard',   target: 'Memory Vault', relation: 'shows' },
+    { source: 'Dashboard',   target: 'Codebase',     relation: 'browses' },
+    { source: 'vis.js',      target: 'Neural Map',   relation: 'renders' },
+    { source: 'Neural Map',  target: 'Nodes',        relation: 'displays' },
+    { source: 'Neural Map',  target: 'Edges',        relation: 'displays' },
+    { source: 'Nodes',       target: 'Glow',         relation: 'animated by' },
+    { source: 'CSS',         target: 'Glow',         relation: 'creates' },
+    { source: 'JavaScript',  target: 'Fetch API',    relation: 'uses' },
+    { source: 'Fetch API',   target: 'Endpoints',    relation: 'calls' },
+
+    // DevOps / infra
+    { source: 'Docker',      target: 'Container',    relation: 'runs' },
+    { source: 'Container',   target: 'Port 8000',    relation: 'exposes' },
+    { source: 'CI/CD',       target: 'GitHub',       relation: 'triggered by' },
+    { source: 'GitHub',      target: 'Git',          relation: 'hosts' },
+    { source: 'Linux',       target: 'Terminal',     relation: 'uses' },
+    { source: 'Linux',       target: 'Docker',       relation: 'runs' },
+    { source: 'PostgreSQL',  target: 'SQL',          relation: 'queries' },
+    { source: 'Redis',       target: 'Cache',        relation: 'stores' },
+
+    // Skills / concepts
+    { source: 'Profile',     target: 'Style Guide',  relation: 'records' },
+    { source: 'Profile',     target: 'Language Pref',relation: 'records' },
+    { source: 'Profile',     target: 'Project Paths',relation: 'records' },
+    { source: 'Style Guide', target: 'PEP 8',        relation: 'follows' },
+    { source: 'Style Guide', target: 'Docstrings',   relation: 'enforces' },
+    { source: 'Context',     target: 'Prompt',       relation: 'builds' },
+    { source: 'Prompt',      target: 'Claude',       relation: 'sent to' },
+    { source: 'Facts',       target: 'Contradiction',relation: 'checked for' },
+    { source: 'Contradiction',target: 'Resolver',    relation: 'handled by' },
+    { source: 'Resolver',    target: 'Developer',    relation: 'asks' },
+    { source: 'Decay',       target: 'Exponential',  relation: 'mode' },
+    { source: 'Decay',       target: 'Linear',       relation: 'mode' },
+    { source: 'Importance',  target: 'YMYL',         relation: 'boosted by' },
+    { source: 'YMYL',        target: 'Health',       relation: 'category' },
+    { source: 'YMYL',        target: 'Finance',      relation: 'category' },
+    { source: 'Buffer',      target: 'Token Count',  relation: 'tracks' },
+    { source: 'Token Count', target: 'Summary',      relation: 'triggers' },
+    { source: 'Summary',     target: 'Short-Term',   relation: 'replaces buffer in' },
+    { source: 'Codebase',    target: 'Python',       relation: 'written in' },
+    { source: 'Codebase',    target: 'Project Paths',relation: 'stored in' },
+    { source: 'VS Code',     target: 'Codebase',     relation: 'opens' },
+];
+
+// Pick a colour + glow for a node by name
+function _nodeStyle(name) {
+    const n = name.toLowerCase();
+    if (['developer','user','kali'].some(k => n.includes(k)))
+        return { color: '#10b981', glow: 'rgba(16,185,129,0.55)' };
+    if (['project','codebase','app','server','bottleneck'].some(k => n.includes(k)))
+        return { color: '#8b5cf6', glow: 'rgba(139,92,246,0.55)' };
+    if (['python','js','react','fastapi','rust','node'].some(k => n.includes(k)))
+        return { color: '#f59e0b', glow: 'rgba(245,158,11,0.55)' };
+    if (['memory','episodic','semantic','graph','claude'].some(k => n.includes(k)))
+        return { color: '#00f2fe', glow: 'rgba(0,242,254,0.45)' };
+    return { color: '#3b82f6', glow: 'rgba(59,130,246,0.45)' };
+}
+
+function _buildVisNodes(nodeSet, nodeDegree) {
+    return Array.from(nodeSet).map(name => {
+        const { color, glow } = _nodeStyle(name);
         const degree = nodeDegree[name] || 1;
-        const nodeSize = 10 + (degree * 4); // Scale size by network connection weight
-
+        const size   = 10 + degree * 4;
         return {
-            id: name,
-            label: name,
-            color: {
-                background: nodeColor,
-                border: nodeColor,
-                highlight: { background: '#ffffff', border: '#ffffff' }
-            },
-            font: { color: '#ffffff', face: 'Space Grotesk', size: 10, vadjust: -22 },
-            shape: 'dot',
-            size: nodeSize,
-            shadow: {
-                enabled: true,
-                color: nodeGlowColor,
-                size: nodeSize + 4,
-                x: 0,
-                y: 0
-            }
+            id: name, label: name,
+            color: { background: color, border: color,
+                     highlight: { background: '#fff', border: '#fff' } },
+            font: { color: '#fff', face: 'Space Grotesk', size: 10, vadjust: -22 },
+            shape: 'dot', size,
+            shadow: { enabled: true, color: glow, size: size + 6, x: 0, y: 0 }
         };
     });
-
-    nodeCountBadge.innerText = `${visNodes.length} NODES`;
-
-    const data = {
-        nodes: new vis.DataSet(visNodes),
-        edges: new vis.DataSet(visEdges)
-    };
-
-    const options = {
-        physics: {
-            stabilization: true,
-            barnesHut: {
-                gravitationalConstant: -1800,
-                centralGravity: 0.15,
-                springLength: 95,
-                springConstant: 0.04,
-                damping: 0.09
-            }
-        },
-        interaction: {
-            dragNodes: true,
-            zoomView: true,
-            dragView: true
-        }
-    };
-
-    if (network) {
-        network.destroy();
-    }
-    network = new vis.Network(container, data, options);
 }
+
+function _buildVisEdges(edges) {
+    return edges.map(e => ({
+        from: e.source, to: e.target,
+        label: e.relation, arrows: 'to',
+        color: { color: 'rgba(99,102,241,0.22)', highlight: 'rgba(0,242,254,0.9)' },
+        font: { color: 'rgba(255,255,255,0.4)', size: 9, strokeWidth: 0, face: 'Space Grotesk' },
+        width: 1.5,
+        smooth: { type: 'continuous', roundness: 0.3 }
+    }));
+}
+
+const GRAPH_OPTIONS = {
+    physics: {
+        stabilization: { iterations: 120 },
+        barnesHut: {
+            gravitationalConstant: -1800,
+            centralGravity: 0.15,
+            springLength: 95,
+            springConstant: 0.04,
+            damping: 0.09
+        }
+    },
+    interaction: { dragNodes: true, zoomView: true, dragView: true }
+};
+
+// Renders neural-network graph; falls back to DEMO_EDGES when no real data
+function updateSemanticGraph(edges) {
+    const container   = document.getElementById('semantic-graph');
+    const placeholder = document.getElementById('graph-placeholder');
+    if (!container) return;
+
+    const isDemo  = !edges || edges.length === 0;
+    const srcEdges = isDemo ? DEMO_EDGES : edges;
+
+    if (isDemo) {
+        if (placeholder) placeholder.style.display = 'none'; // hide text — graph IS the placeholder now
+    } else {
+        if (placeholder) placeholder.style.display = 'none';
+    }
+
+    const nodeDegree = {}, nodeSet = new Set();
+    srcEdges.forEach(e => {
+        nodeSet.add(e.source); nodeSet.add(e.target);
+        nodeDegree[e.source] = (nodeDegree[e.source] || 0) + 1;
+        nodeDegree[e.target] = (nodeDegree[e.target] || 0) + 1;
+    });
+
+    const visData = {
+        nodes: new vis.DataSet(_buildVisNodes(nodeSet, nodeDegree)),
+        edges: new vis.DataSet(_buildVisEdges(srcEdges))
+    };
+
+    if (network) network.destroy();
+    network = new vis.Network(container, visData, GRAPH_OPTIONS);
+
+    const label = isDemo ? `${nodeSet.size} NODES · DEMO` : `${nodeSet.size} NODES`;
+    nodeCountBadge.innerText = label;
+    if (isDemo) {
+        nodeCountBadge.style.background = 'rgba(245,158,11,0.7)';
+        nodeCountBadge.title = 'Demo data — run Consolidate (Sleep) to build real graph';
+    } else {
+        nodeCountBadge.style.background = 'var(--primary)';
+        nodeCountBadge.title = '';
+    }
+
+    network.once('stabilized', () =>
+        network.fit({ animation: { duration: 700, easingFunction: 'easeInOutQuad' } })
+    );
+}
+
+// Fit / zoom-to-fit all nodes
+window.fitGraph = function() {
+    if (network) network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+};
+
+// Toggle fullscreen on the graph panel
+window.toggleGraphFullscreen = function() {
+    const panel = document.getElementById('graph-panel');
+    if (!panel) return;
+    const isFs = panel.classList.toggle('graph-fullscreen');
+    document.getElementById('btn-graph-fs').innerHTML = isFs ? '⤡' : '⤢';
+    document.getElementById('btn-graph-fs').title = isFs ? 'Exit fullscreen' : 'Maximize graph';
+    setTimeout(() => { if (network) { network.redraw(); network.fit(); } }, 50);
+};
+
+// Redraw graph on window resize
+window.addEventListener('resize', () => { if (network) { network.redraw(); } });
+
+// Boot demo graph immediately on load
+document.addEventListener('DOMContentLoaded', () => updateSemanticGraph(null));
+
+
 
 // API Call - Trigger manual Sleep Consolidation
 async function triggerSleep() {
@@ -559,3 +698,124 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+// ── Codebase Explorer ────────────────────────────────────────────────────────
+
+let _codebaseLoaded = false;
+let _currentFileContent = '';
+
+// File extension → emoji icon map
+const FILE_ICONS = {
+    '.py':   '🐍', '.js':  '☕', '.ts':  '🔷', '.html': '🌐',
+    '.css':  '🎨', '.md':  '📝', '.txt': '📄', '.json': '📦',
+    '.yml':  '⚙️', '.yaml':'⚙️', '.sh':  '🖥️', '.env':  '🔐',
+    '.toml': '📋', '.cfg': '📋', '.ini': '📋',
+};
+
+function getFileIcon(name) {
+    const ext = name.slice(name.lastIndexOf('.')).toLowerCase();
+    return FILE_ICONS[ext] || '📄';
+}
+
+// Render a tree node recursively
+function renderTree(items, container, depth = 0) {
+    items.forEach(item => {
+        if (item.type === 'dir') {
+            const dirEl = document.createElement('div');
+            dirEl.className = 'tree-dir';
+            dirEl.innerHTML = `<span class="tree-arrow">▶</span><span class="tree-icon">📁</span><span>${escapeHtml(item.name)}</span>`;
+
+            const childContainer = document.createElement('div');
+            childContainer.className = 'tree-children';
+            childContainer.style.display = 'none';
+            renderTree(item.children, childContainer, depth + 1);
+
+            dirEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = dirEl.classList.toggle('open');
+                childContainer.style.display = isOpen ? 'block' : 'none';
+                dirEl.querySelector('.tree-icon').textContent = isOpen ? '📂' : '📁';
+            });
+
+            container.appendChild(dirEl);
+            container.appendChild(childContainer);
+        } else {
+            const fileEl = document.createElement('div');
+            fileEl.className = 'tree-file';
+            fileEl.innerHTML = `<span class="tree-icon">${getFileIcon(item.name)}</span><span title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</span>`;
+            fileEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+                fileEl.classList.add('active');
+                loadFileContent(item.path);
+            });
+            container.appendChild(fileEl);
+        }
+    });
+}
+
+// Load the whole codebase tree (called once, cached)
+window.loadCodebaseTree = async function() {
+    if (_codebaseLoaded) return;
+    const treeEl = document.getElementById('codebase-tree');
+    treeEl.innerHTML = '<div class="codebase-tree-placeholder">Loading project files…</div>';
+
+    try {
+        const res = await fetch('/api/codebase');
+        const data = await res.json();
+        treeEl.innerHTML = '';
+
+        // Root folder label
+        const rootLabel = document.createElement('div');
+        rootLabel.style.cssText = 'font-size:0.7rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em;padding:0.2rem 0.3rem 0.4rem;';
+        rootLabel.textContent = `📦 ${data.root}`;
+        treeEl.appendChild(rootLabel);
+
+        renderTree(data.tree, treeEl);
+        _codebaseLoaded = true;
+    } catch (err) {
+        treeEl.innerHTML = `<div class="codebase-tree-placeholder" style="color:#f87171;">Failed to load: ${err.message}</div>`;
+    }
+};
+
+// Load file content and display it in the viewer
+async function loadFileContent(path) {
+    const placeholder = document.querySelector('.codebase-viewer-placeholder');
+    const header = document.getElementById('codebase-file-header');
+    const pathLabel = document.getElementById('codebase-file-path');
+    const codeEl = document.getElementById('codebase-code');
+
+    if (placeholder) placeholder.style.display = 'none';
+    header.style.display = 'flex';
+    pathLabel.textContent = path;
+    codeEl.textContent = 'Loading…';
+
+    try {
+        const res = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
+        const data = await res.json();
+        _currentFileContent = data.content;
+        codeEl.textContent = data.content;
+        if (data.truncated) {
+            pathLabel.textContent = `${path}  ⚠️ Truncated (file too large)`;
+        }
+    } catch (err) {
+        codeEl.textContent = `Error loading file: ${err.message}`;
+    }
+}
+
+// Copy displayed file content to clipboard
+window.copyFileContent = function() {
+    if (!_currentFileContent) return;
+    navigator.clipboard.writeText(_currentFileContent).then(() => {
+        const btn = document.getElementById('btn-copy-file');
+        const orig = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.background = 'var(--primary)';
+        btn.style.color = '#fff';
+        setTimeout(() => {
+            btn.innerText = orig;
+            btn.style.background = '';
+            btn.style.color = '';
+        }, 1500);
+    });
+};

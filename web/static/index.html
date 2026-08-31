@@ -170,16 +170,25 @@ console.log(data.reply);</code></pre>
         </section>
 
         <!-- Column 3: Neural Map (Permanent) & Memory Vault / Working Context -->
-        <div class="column-stack" style="display: flex; flex-direction: column; gap: 1.2rem; height: 100%; min-height: 0;">
+        <div class="column-stack" style="display: flex; flex-direction: column; gap: 1.2rem; height: 100%; min-height: 0; overflow: hidden; align-self: stretch;">
             
             <!-- Neural Network Visualizer (Always Visible) -->
-            <section class="panel" style="flex: 1.1; display: flex; flex-direction: column; min-height: 0;">
+            <section class="panel" id="graph-panel" style="flex: 1; display: flex; flex-direction: column; min-height: 220px;">
                 <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Synaptic Semantic Graph</span>
-                    <span id="node-count-badge" style="font-size: 0.7rem; background: var(--primary); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">0 NODES</span>
+                    <span>⬡ Neural Memory Graph</span>
+                    <div style="display:flex;align-items:center;gap:0.4rem;">
+                        <span id="node-count-badge" style="font-size: 0.7rem; background: var(--primary); padding: 0.1rem 0.5rem; border-radius: 4px; font-weight: bold;" title="">0 NODES</span>
+                        <button onclick="fitGraph()" title="Zoom to fit all nodes" style="background:rgba(255,255,255,0.07);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:5px;padding:0.15rem 0.45rem;font-size:0.75rem;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-secondary)'">⊙ Fit</button>
+                        <button id="btn-graph-fs" onclick="toggleGraphFullscreen()" title="Maximize graph" style="background:rgba(255,255,255,0.07);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:5px;padding:0.15rem 0.45rem;font-size:0.75rem;cursor:pointer;line-height:1;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--text-secondary)'">⤢</button>
+                    </div>
                 </div>
-                <div class="panel-body" style="flex: 1; display: flex; flex-direction: column; padding: 0.8rem; min-height: 0; overflow: hidden;">
-                    <div id="semantic-graph" style="flex: 1; border: 1px solid var(--border-color); border-radius: 12px; background: radial-gradient(circle, #0e121a 0%, #05070a 100%); position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); width: 100%; min-height: 0;"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; padding: 0.8rem; min-height: 0; overflow: hidden;">
+                    <div id="semantic-graph" style="flex: 1; min-height: 180px; border: 1px solid var(--border-color); border-radius: 12px; background: radial-gradient(circle, #0e121a 0%, #05070a 100%); position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); width: 100%;">
+                        <div id="graph-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,0.18);pointer-events:none;text-align:center;gap:0.5rem;">
+                            <div style="font-size:2rem;">⬡</div>
+                            <div style="font-size:0.78rem;font-family:'Space Grotesk',sans-serif;">No synaptic links yet<br>Send messages &amp; run <strong style="color:rgba(99,102,241,0.6)">Consolidate</strong></div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -214,6 +214,35 @@ header {
     overflow: hidden;
 }
 
+/* The column-stack wrapper must fill the grid cell */
+.column-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    min-height: 0;
+    overflow: hidden;
+    align-self: stretch;
+}
+
+/* Maximize / fullscreen mode for the neural graph panel */
+#graph-panel.graph-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999;
+    border-radius: 0 !important;
+    flex: unset !important;
+    min-height: unset !important;
+    animation: graphFsIn 0.2s ease;
+}
+#graph-panel.graph-fullscreen #semantic-graph {
+    border-radius: 0 !important;
+    min-height: calc(100vh - 52px) !important;
+}
+@keyframes graphFsIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
 @media (max-width: 1200px) {
     .dashboard-container {
         grid-template-columns: 1fr;
