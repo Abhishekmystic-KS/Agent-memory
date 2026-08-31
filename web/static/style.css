@@ -920,3 +920,112 @@ input[type="range"]::-moz-range-thumb {
     50% { opacity: 1; }
 }
 
+/* ── Codebase Explorer ──────────────────────────────────────────────────────── */
+.codebase-explorer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+}
+
+.codebase-tree {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.5rem;
+    font-size: 0.78rem;
+    max-height: 240px;
+    overflow-y: auto;
+    font-family: 'Space Grotesk', monospace;
+    flex-shrink: 0;
+}
+
+.codebase-tree-placeholder {
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.tree-dir, .tree-file {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.18rem 0.3rem;
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+}
+
+.tree-dir { color: var(--primary); font-weight: 600; }
+.tree-file:hover { background: rgba(99, 102, 241, 0.12); color: var(--text-primary); }
+.tree-file.active { background: rgba(99, 102, 241, 0.2); color: #fff; font-weight: 600; }
+
+.tree-dir .tree-arrow {
+    display: inline-block;
+    transition: transform 0.2s;
+    font-size: 0.65rem;
+    min-width: 10px;
+}
+.tree-dir.open .tree-arrow { transform: rotate(90deg); }
+
+.tree-children {
+    padding-left: 1.1rem;
+    border-left: 1px solid rgba(255,255,255,0.06);
+    margin-left: 0.4rem;
+}
+
+.tree-icon { font-size: 0.75rem; min-width: 14px; }
+
+.codebase-viewer {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.codebase-viewer-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    color: var(--text-secondary);
+}
+
+.codebase-file-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.75rem;
+    background: rgba(99, 102, 241, 0.1);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.75rem;
+    font-family: 'Space Grotesk', monospace;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+#codebase-code {
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    padding: 0.75rem;
+    font-size: 0.73rem;
+    line-height: 1.6;
+    font-family: 'Courier New', Courier, monospace;
+    color: #c9d1d9;
+    white-space: pre;
+    background: transparent;
+    min-height: 0;
+    max-height: 280px;
+}
+

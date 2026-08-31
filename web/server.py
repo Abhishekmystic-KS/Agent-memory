@@ -529,7 +529,63 @@ async def run_eval(payload: Dict[str, str] = Body(...)):
         "retrieved": retrieved_details
     }
 
+
+# ── Codebase Explorer ─────────────────────────────────────────────────────────
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+SKIP_DIRS  = {".git", "__pycache__", ".pytest_cache", "venv", "node_modules", ".gemini"}
+SKIP_FILES = {".pyc", ".pyo", ".webp", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".woff", ".woff2"}
+MAX_FILE_BYTES = 200_000  # 200 KB cap — safety for large files
+
+def _build_tree(root: str, rel: str = "") -> list:
+    items = []
+    try:
+        entries = sorted(os.scandir(os.path.join(root, rel)), key=lambda e: (not e.is_dir(), e.name.lower()))
+    except PermissionError:
+        return items
+    for entry in entries:
+        if entry.name.startswith(".") and entry.name in SKIP_DIRS:
+            continue
+        if entry.is_dir():
+            if entry.name in SKIP_DIRS:
+                continue
+            child_rel = os.path.join(rel, entry.name) if rel else entry.name
+            children = _build_tree(root, child_rel)
+            items.append({"name": entry.name, "path": child_rel, "type": "dir", "children": children})
+        else:
+            ext = os.path.splitext(entry.name)[1].lower()
+            if ext in SKIP_FILES:
+                continue
+            child_rel = os.path.join(rel, entry.name) if rel else entry.name
+            items.append({"name": entry.name, "path": child_rel, "type": "file",
+                          "size": entry.stat().st_size})
+    return items
+
+@app.get("/api/codebase")
+async def get_codebase_tree():
+    tree = _build_tree(PROJECT_ROOT)
+    return {"root": os.path.basename(PROJECT_ROOT), "tree": tree}
+
+@app.get("/api/file")
+async def get_file_content(path: str):
+    # Sanitize: resolve to absolute and ensure it's inside project root
+    abs_path = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+    if not abs_path.startswith(PROJECT_ROOT):
+        raise HTTPException(status_code=403, detail="Access denied.")
+    if not os.path.isfile(abs_path):
+        raise HTTPException(status_code=404, detail="File not found.")
+    size = os.path.getsize(abs_path)
+    if size > MAX_FILE_BYTES:
+        return {"path": path, "content": f"[File too large to display: {size // 1024} KB]", "truncated": True}
+    try:
+        with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"path": path, "content": content, "truncated": False}
+
 # Serve Frontend static assets
+
 static_path = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_path):
     os.makedirs(static_path)

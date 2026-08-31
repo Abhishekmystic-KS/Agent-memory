@@ -169,82 +169,111 @@ console.log(data.reply);</code></pre>
             </div>
         </section>
 
-        <!-- Column 3: Memory Tiers Inspector -->
-        <section class="panel">
-            <div class="tabs">
-                <button type="button" class="tab-btn active" data-tab="neural-net-tab">Neural Map</button>
-                <button type="button" class="tab-btn" data-tab="memory-vault-tab">Memory Vault</button>
-                <button type="button" class="tab-btn" data-tab="working-mem-tab">Working Context</button>
-            </div>
-
-            <!-- Tab 1: Neural Network Visualizer -->
-            <div id="neural-net-tab" class="tab-content active" style="flex-direction: column; display: flex; height: calc(100% - 40px);">
-                <div class="wm-title" style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <!-- Column 3: Neural Map (Permanent) & Memory Vault / Working Context -->
+        <div class="column-stack" style="display: flex; flex-direction: column; gap: 1.2rem; height: 100%; min-height: 0;">
+            
+            <!-- Neural Network Visualizer (Always Visible) -->
+            <section class="panel" style="flex: 1.1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>Synaptic Semantic Graph</span>
                     <span id="node-count-badge" style="font-size: 0.7rem; background: var(--primary); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">0 NODES</span>
                 </div>
-                <div id="semantic-graph" style="flex: 1; border: 1px solid var(--border-color); border-radius: 12px; background: radial-gradient(circle, #0e121a 0%, #05070a 100%); position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);"></div>
-            </div>
-
-            <!-- Tab 2: Memory Vault -->
-            <div id="memory-vault-tab" class="tab-content" style="overflow-y: auto;">
-                <div class="settings-section">
-                    <div class="wm-title" style="margin-bottom: 0.25rem;">Developer Profile Fields</div>
-                    <div class="profile-card">
-                        <table class="profile-table">
-                            <thead>
-                                <tr>
-                                    <th>Field</th>
-                                    <th>Value</th>
-                                    <th style="width: 50px; text-align: center;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="profile-table-body">
-                                <tr>
-                                    <td colspan="3" style="color: var(--text-secondary); text-align: center;">No profile keys extracted yet. Run Sleep Consolidation to build.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="panel-body" style="flex: 1; display: flex; flex-direction: column; padding: 0.8rem; min-height: 0; overflow: hidden;">
+                    <div id="semantic-graph" style="flex: 1; border: 1px solid var(--border-color); border-radius: 12px; background: radial-gradient(circle, #0e121a 0%, #05070a 100%); position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); width: 100%; min-height: 0;"></div>
                 </div>
+            </section>
 
-                <div class="settings-section" style="margin-top: 1.2rem;">
-                    <div class="wm-title" style="margin-bottom: 0.25rem;">Consolidated Facts</div>
-                    <div class="profile-card" style="max-height: 180px; overflow-y: auto; padding: 0.25rem;">
-                        <ul id="facts-list" style="font-size: 0.85rem; padding-left: 0; list-style-type: none; display: flex; flex-direction: column; gap: 0.3rem; margin: 0;">
-                            <span style="color: var(--text-secondary); padding: 0.5rem;">No facts generated.</span>
-                        </ul>
-                    </div>
+            <!-- Memory Vault & Working Context (Tabbed Inspector) -->
+            <section class="panel" style="flex: 1.3; display: flex; flex-direction: column; min-height: 0;">
+                <div class="tabs">
+                    <button type="button" class="tab-btn active" data-tab="memory-vault-tab">Memory Vault</button>
+                    <button type="button" class="tab-btn" data-tab="working-mem-tab">Working Context</button>
+                    <button type="button" class="tab-btn" data-tab="codebase-tab" onclick="loadCodebaseTree()">Codebase</button>
                 </div>
+                <div class="panel-body" style="flex: 1; overflow-y: auto; padding: 0.8rem;">
+                    
+                    <!-- Tab 1: Memory Vault -->
+                    <div id="memory-vault-tab" class="tab-content active">
+                        <div class="settings-section">
+                            <div class="wm-title" style="margin-bottom: 0.25rem;">Developer Profile Fields</div>
+                            <div class="profile-card">
+                                <table class="profile-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Field</th>
+                                            <th>Value</th>
+                                            <th style="width: 50px; text-align: center;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="profile-table-body">
+                                        <tr>
+                                            <td colspan="3" style="color: var(--text-secondary); text-align: center;">No profile keys extracted yet. Run Sleep Consolidation to build.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-                <div class="settings-section" style="margin-top: 1.2rem;">
-                    <div class="wm-title" style="margin-bottom: 0.25rem;">Episodic Records</div>
-                    <div class="profile-card" style="max-height: 200px; overflow-y: auto; padding: 0.25rem;">
-                        <div id="vault-episodic-list" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem;">
-                            <span style="color: var(--text-secondary); padding: 0.5rem;">No logs stored.</span>
+                        <div class="settings-section" style="margin-top: 1.2rem;">
+                            <div class="wm-title" style="margin-bottom: 0.25rem;">Consolidated Facts</div>
+                            <div class="profile-card" style="max-height: 180px; overflow-y: auto; padding: 0.25rem;">
+                                <ul id="facts-list" style="font-size: 0.85rem; padding-left: 0; list-style-type: none; display: flex; flex-direction: column; gap: 0.3rem; margin: 0;">
+                                    <span style="color: var(--text-secondary); padding: 0.5rem;">No facts generated.</span>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="settings-section" style="margin-top: 1.2rem;">
+                            <div class="wm-title" style="margin-bottom: 0.25rem;">Episodic Records</div>
+                            <div class="profile-card" style="max-height: 200px; overflow-y: auto; padding: 0.25rem;">
+                                <div id="vault-episodic-list" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                                    <span style="color: var(--text-secondary); padding: 0.5rem;">No logs stored.</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Tab 3: Working Context -->
-            <div id="working-mem-tab" class="tab-content">
-                <div class="wm-box">
-                    <div class="wm-title">System Instruction</div>
-                    <div class="wm-summary" id="wm-system-instruction">You are Bottleneck, a premium developer memory companion. You help Claude Codex and the developer keep track of programming languages, style guidelines, project architecture, codebase paths, configurations, and session goals.</div>
-                </div>
-                <div class="wm-box">
-                    <div class="wm-title">Rolling Summarized History</div>
-                    <div class="wm-summary empty" id="wm-summary-content">No dialogue compressed yet. Summary will generate when token/turn thresholds are exceeded.</div>
-                </div>
-                <div class="wm-box">
-                    <div class="wm-title">Active Buffer Messages</div>
-                    <div id="wm-buffer-list" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 250px; overflow-y: auto;">
-                        <span style="color: var(--text-secondary);">Buffer is empty.</span>
+                    <!-- Tab 2: Working Context -->
+                    <div id="working-mem-tab" class="tab-content">
+                        <div class="wm-box">
+                            <div class="wm-title">System Instruction</div>
+                            <div class="wm-summary" id="wm-system-instruction">You are Bottleneck, a premium developer memory companion. You help Claude Codex and the developer keep track of programming languages, style guidelines, project architecture, codebase paths, configurations, and session goals.</div>
+                        </div>
+                        <div class="wm-box" style="margin-top: 1rem;">
+                            <div class="wm-title">Rolling Summarized History</div>
+                            <div class="wm-summary empty" id="wm-summary-content">No dialogue compressed yet. Summary will generate when token/turn thresholds are exceeded.</div>
+                        </div>
+                        <div class="wm-box" style="margin-top: 1rem;">
+                            <div class="wm-title">Active Buffer Messages</div>
+                            <div id="wm-buffer-list" style="font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 250px; overflow-y: auto;">
+                                <span style="color: var(--text-secondary);">Buffer is empty.</span>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Tab 3: Codebase Explorer -->
+                    <div id="codebase-tab" class="tab-content">
+                        <div class="codebase-explorer">
+                            <div class="codebase-tree" id="codebase-tree">
+                                <div class="codebase-tree-placeholder">Click the <strong>Codebase</strong> tab to load project files.</div>
+                            </div>
+                            <div class="codebase-viewer" id="codebase-viewer">
+                                <div class="codebase-viewer-placeholder">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📂</div>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary);">Select a file to view its contents</div>
+                                </div>
+                                <div class="codebase-file-header" id="codebase-file-header" style="display: none;">
+                                    <span id="codebase-file-path"></span>
+                                    <button class="copy-btn" id="btn-copy-file" onclick="copyFileContent()">Copy</button>
+                                </div>
+                                <pre id="codebase-code"></pre>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
     </main>
 
