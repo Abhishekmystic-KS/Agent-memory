@@ -1,122 +1,89 @@
-# Bottleneck — Developer Memory Agent
+# Bottleneck: Developer Memory Agent
 
-> **Premium cognitive memory layer for AI coding assistants.** Bottleneck helps Claude Codex, Gemini, and custom agents organize coding preferences, style guides, project architecture, and codebase environments — with a stunning real-time neural memory graph.
+Bottleneck is a local-first memory layer for coding assistants. It helps capture developer preferences, maintain conversation context, and surface useful historical knowledge through a web dashboard.
 
----
-
-## 📸 Screenshots
-
-### Developer Memory Cockpit
+## Screenshots
 
 ![Bottleneck Developer Memory Cockpit](assets/cockpit_dashboard.png)
-
-### Neural Memory Graph (Fullscreen)
-
 ![Bottleneck Neural Memory Graph](assets/neural_graph_fullscreen.png)
 
----
+## Memory Architecture
 
-## 🧠 The 4-Tier Developer Memory Architecture
+Bottleneck organizes context into four tiers:
 
-Bottleneck manages developer context through four specialized memory tiers:
+1. **Sensory Ingestion Memory**: Captures raw user/agent dialogue and sanitizes risky prompt content.
+2. **Short-Term (Working) Memory**: Keeps active conversation context compact with rolling summaries.
+3. **Long-Term Episodic Memory**: Stores session history and retrieves it by recency, importance, and relevance.
+4. **Long-Term Semantic Memory**: Consolidates structured knowledge and visualizes relationships in the neural graph.
 
-1. **Sensory Ingestion Memory** — Captures raw user/agent dialogue and filters input using **Prompt Sanitization** to protect against prompt-injection instructions.
-2. **Short-Term (Working) Memory** — Manages the immediate conversation context with rolling token/turn summaries, preventing context window bloat for AI coding assistants.
-3. **Long-Term Episodic Memory** — Stores historical session logs. Retrievable memories are weighted by **Recency**, **Importance**, and **Relevance**. Supports dynamic decay models and **YMYL (Your Money Your Life) Immunity** to protect sensitive API keys and critical declarations from decay.
-4. **Long-Term Semantic Memory** — Structured knowledge built through sleep consolidation. Converts unstructured chat history into structured user profiles, codebase parameters, and an **Interactive Force-Directed Neural Graph** (powered by vis.js) showing real-time relationships between entities.
-
----
-
-## 🔄 Core Cognitive Skills
+## Core Skills
 
 | Skill | Description |
-|---|---|
-| **Prompt Sanitization** | Automatically redacts system instruction override patterns |
-| **Contradiction Resolution** | Detects memory conflicts and shows resolution dialogs |
-| **Decay & YMYL Immunity** | Exponential / Linear / Step decay with critical-config immunity |
-| **Frustration Recovery** | Pins memories when it detects user reminder cues |
-| **Plugin Integration** | Drop-in cURL / Python / Node.js snippets for Claude Codex |
-| **Codebase Explorer** | Live file tree + code viewer built into the dashboard |
+| --- | --- |
+| Prompt Sanitization | Redacts known system-instruction override patterns |
+| Contradiction Resolution | Detects conflicting memory entries |
+| Decay + YMYL Immunity | Applies decay policies while protecting critical entries |
+| Frustration Recovery | Pins memories when reminder cues are detected |
+| Codebase Explorer | Provides in-dashboard file browsing and viewing |
+| Integration Endpoints | Supports cURL/Python integrations for external agents |
 
----
+## Quick Start
 
-## 🚀 Quick Start
-
-Bottleneck runs **100% offline** out-of-the-box using local heuristics. Optionally supply a Gemini API Key to enable vector embeddings and LLM-based consolidation.
-
-### 1. Set Up & Install
+### 1) Create environment and install dependencies
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install fastapi uvicorn pydantic pytest
+pip install -r requirements.txt
 ```
 
-### 2. Run the Cockpit Server
+### 2) Run the server
 
 ```bash
 PYTHONPATH=. venv/bin/uvicorn web.server:app --reload
 ```
 
-### 3. Open the Cockpit UI
+### 3) Open the dashboard
 
-Navigate to **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+Visit: http://127.0.0.1:8000
 
----
-
-## 🎮 Dashboard Features
-
-| Panel | What it does |
-|---|---|
-| **Agent Dialogue Console** | Chat with Bottleneck to feed your codebase context |
-| **⬡ Neural Memory Graph** | 76-node interactive graph — drag, zoom, maximize fullscreen |
-| **Memory Vault** | Browse & delete Developer Profile, Facts, Episodic logs |
-| **Working Context** | View active system prompt, rolling summary, buffer messages |
-| **Codebase Explorer** | Browse the whole project file tree and view any file |
-| **Plugin Integration** | Copy-paste cURL / Python / Node.js integration snippets |
-
----
-
-## 🔌 Integrate with Claude Codex
+## API Example
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Project uses FastAPI on port 8000"}'
+  -d '{"message":"Project uses FastAPI on port 8000"}'
 ```
 
 ```python
 import requests
-res = requests.post("http://127.0.0.1:8000/api/chat",
-                    json={"message": "I prefer PEP 8 and Google-style docstrings"})
+
+res = requests.post(
+    "http://127.0.0.1:8000/api/chat",
+    json={"message": "I prefer PEP 8 and Google-style docstrings"},
+)
 print(res.json()["reply"])
 ```
 
----
-
-## 🧪 Run Tests
+## Run Tests
 
 ```bash
 PYTHONPATH=. pytest tests/
 ```
 
----
+## Project Structure
 
-## 📁 Project Structure
-
-```
-Ai_Agent_memory/
-├── bottleneck/          # Core memory modules (sensory, short_term, episodic, semantic)
-│   └── skills/          # Sanitizer, YMYL classifier, decay, confidence, retrieval
+```text
+Agent-memory/
+├── bottleneck/          # Core memory modules
+│   └── skills/          # Sanitizer, decay, retrieval and related skills
 ├── web/
-│   ├── server.py        # FastAPI backend + all API endpoints
-│   └── static/          # index.html · style.css · app.js
-├── tests/               # pytest unit tests
-└── assets/              # Screenshots and diagrams
+│   ├── server.py        # FastAPI backend
+│   └── static/          # Frontend assets
+├── tests/               # Pytest test suite
+└── assets/              # Images and diagrams
 ```
 
----
+## License
 
-## 🪪 License
-
-MIT — open-source and free to use.
+MIT
